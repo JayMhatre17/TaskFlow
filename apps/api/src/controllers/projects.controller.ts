@@ -1,0 +1,138 @@
+import { NextFunction, Request, Response } from "express";
+import {
+  createProjectSchema,
+  UpdateProjectSchema,
+} from "../schema/project.schema";
+import {
+  createProject,
+  deleteProject,
+  getProjectById,
+  getProjects,
+  updateProject,
+} from "../service/project.service";
+
+export const getProjectsController = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projects = await getProjects();
+    return res.json(projects);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const createProjectController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = createProjectSchema.safeParse(req.body);
+
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: result.error.flatten().fieldErrors,
+      });
+    }
+
+    const project = await createProject(result.data);
+
+    return res.status(201).json(project);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getProjetByIdController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (Number.isNaN(id)) {
+      return res.status(400).json({
+        message: "Invalid project id",
+      });
+    }
+
+    const project = await getProjectById(id);
+
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    return res.json(project);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const updateProjectController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (Number.isNaN(id)) {
+      return res.status(400).json({
+        message: "Invalid project id",
+      });
+    }
+
+    const result = UpdateProjectSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: result.error.flatten().fieldErrors,
+      });
+    }
+    const existingProject = await getProjectById(id);
+
+    if (!existingProject) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+    const project = await updateProject(id, result.data);
+
+    return res.json(project);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const deleteProjectController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({
+        message: "Invalid project id",
+      });
+    }
+    const project = await getProjectById(id);
+    if (!project) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+    await deleteProject(id);
+
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+};

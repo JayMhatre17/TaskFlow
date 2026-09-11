@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { Task } from "./task.api";
 
 export type Project = {
   id: number;
@@ -59,7 +60,7 @@ export const deleteProject = (id: number) => {
 };
 
 export const getTasksByProject = (projectId: number) => {
-  return apiRequest<Project[]>({
+  return apiRequest<Task[]>({
     method: "GET",
     path: `/api/projects/${projectId}/tasks`,
   });

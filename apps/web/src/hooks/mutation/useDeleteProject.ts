@@ -8,13 +8,17 @@ export const useDeleteProject = () => {
   return useMutation({
     mutationFn: (id: number) => deleteProject(id),
 
-    onSuccess: (_, id) => {
-      // Remove the deleted project's detail cache
+    onSuccess: (_, projectId) => {
       queryClient.removeQueries({
-        queryKey: ["project", id],
+        queryKey: ["project", projectId],
+        exact: true,
       });
 
-      // Refresh the projects list
+      queryClient.removeQueries({
+        queryKey: ["project-tasks", projectId],
+        exact: true,
+      });
+
       queryClient.invalidateQueries({
         queryKey: ["projects"],
       });

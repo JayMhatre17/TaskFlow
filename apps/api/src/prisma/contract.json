@@ -368,6 +368,7 @@
               },
               "foreignKeys": [
                 {
+                  "onDelete": "cascade",
                   "source": {
                     "columns": [
                       "projectId"
@@ -407,7 +408,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "6fee6cec86bc156d9d811db9357107f2f9059c18a3797fe0b6df24fc10e3c515"
+    "storageHash": "f853c90ee22e57395d3338b06af3882ce0f9666732239785ad5d3987cf1923da"
   },
   "execution": {
     "executionHash": "2cff76b0d7d32e72d449f9733cd2ea32fa842cf95a74be478bf0709a080beeb9",

@@ -1,10 +1,10 @@
 "use client";
-import { getProjects } from "@/lib/api/project.api";
+import { getProjects, ProjectQueryParams } from "@/lib/api/project.api";
 import { useQuery } from "@tanstack/react-query";
 
-export const useProjects = () => {
+export const useProjects = (params?: ProjectQueryParams) => {
   return useQuery({
-    queryKey: ["projects"],
-    queryFn: getProjects,
+    queryKey: ["projects", params],
+    queryFn: () => getProjects(params),
   });
 };

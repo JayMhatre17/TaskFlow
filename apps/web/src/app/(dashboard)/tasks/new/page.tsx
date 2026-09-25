@@ -1,8 +1,8 @@
 import CreateTaskForm from "@/components/task/CreateTaskForm";
-import { getProjects } from "@/lib/api/project.api";
+import { getProjectOptions   } from "@/lib/api/project.api";
 
 export default async function CreateTaskPage() {
-  const projects = await getProjects();
+  const projects = await getProjectOptions();
 
   const projectOptions = projects.map((project) => ({
     label: project.name,

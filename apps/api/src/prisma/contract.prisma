@@ -1,5 +1,31 @@
 // use prisma-next
 
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id
+  userId    Int
+  expiresAt DateTime
+
+  user User @relation(
+    fields: [userId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  createdAt TimestamptzString @default(now())
+}
+
 model Project {
   id          Int      @id @default(autoincrement())
   name        String
@@ -17,8 +43,8 @@ model Task {
   id          Int      @id @default(autoincrement())
   title       String
   description String?
-  status      String
-  priority    String
+  status      Int
+  priority    Int
   dueDate     DateTime?
   projectId   Int
 

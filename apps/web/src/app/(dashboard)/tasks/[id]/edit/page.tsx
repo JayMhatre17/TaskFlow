@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import CreateTaskForm from "@/components/task/CreateTaskForm";
 import { getTask } from "@/lib/api/task.api";
-import { getProjects } from "@/lib/api/project.api";
+import { getProjectOptions } from "@/lib/api/project.api";
 
 type EditTaskPageProps = {
   params: Promise<{
@@ -18,7 +18,10 @@ export default async function EditTaskPage({ params }: EditTaskPageProps) {
     notFound();
   }
 
-  const [task, projects] = await Promise.all([getTask(taskId), getProjects()]);
+  const [task, projects] = await Promise.all([
+    getTask(taskId),
+    getProjectOptions(),
+  ]);
 
   if (!task) {
     notFound();
@@ -32,7 +35,7 @@ export default async function EditTaskPage({ params }: EditTaskPageProps) {
   const defaultValues = {
     title: task.title,
     description: task.description ?? "",
-    projectId: String(task.projectId),
+    projectId: String(task.project?.id),
     status: task.status,
     priority: task.priority,
     dueDate: task.dueDate ? task.dueDate.split("T")[0] : "",

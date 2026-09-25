@@ -1,0 +1,54 @@
+[
+  {
+    "id": "convert-task-priority",
+    "label": "Convert task priority from string to integer",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Check priority column is still text",
+        "sql": "\n      SELECT 1\n      FROM information_schema.columns\n      WHERE table_schema = 'public'\n        AND table_name = 'task'\n        AND column_name = 'priority'\n        AND data_type = 'text'\n      LIMIT 1\n    "
+      }
+    ],
+    "execute": [
+      {
+        "description": "Convert task priority to integer",
+        "sql": "\n              ALTER TABLE \"public\".\"task\"\n              ALTER COLUMN \"priority\" TYPE integer\n              USING (\n                CASE \"priority\"\n                  WHEN 'LOW' THEN 1\n                  WHEN 'MEDIUM' THEN 2\n                  WHEN 'HIGH' THEN 3\n                  WHEN 'URGENT' THEN 4\n                END\n              )\n            "
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Check priority conversion completed",
+        "sql": "\n      SELECT 1\n      FROM information_schema.columns\n      WHERE table_schema = 'public'\n        AND table_name = 'task'\n        AND column_name = 'priority'\n        AND data_type = 'integer'\n      LIMIT 1\n    "
+      }
+    ]
+  },
+  {
+    "id": "convert-task-status",
+    "label": "Convert task status from string to integer",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "Check status column is still text",
+        "sql": "\n      SELECT 1\n      FROM information_schema.columns\n      WHERE table_schema = 'public'\n        AND table_name = 'task'\n        AND column_name = 'status'\n        AND data_type = 'text'\n      LIMIT 1\n    "
+      }
+    ],
+    "execute": [
+      {
+        "description": "Convert task status to integer",
+        "sql": "\n              ALTER TABLE \"public\".\"task\"\n              ALTER COLUMN \"status\" TYPE integer\n              USING (\n                CASE \"status\"\n                  WHEN 'TODO' THEN 1\n                  WHEN 'IN_PROGRESS' THEN 2\n                  WHEN 'IN_REVIEW' THEN 3\n                  WHEN 'COMPLETED' THEN 4\n                END\n              )\n            "
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "Check status conversion completed",
+        "sql": "\n      SELECT 1\n      FROM information_schema.columns\n      WHERE table_schema = 'public'\n        AND table_name = 'task'\n        AND column_name = 'status'\n        AND data_type = 'integer'\n      LIMIT 1\n    "
+      }
+    ]
+  }
+]

@@ -35,3 +35,21 @@ export const UpdateProjectSchema = z
   );
 
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
+
+export const projectQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+
+  search: z.string().trim().optional(),
+
+  status: z.enum(["Active", "On Hold"]).optional(),
+
+  sortBy: z
+    .enum(["name", "status", "startDate", "dueDate", "createdAt", "updatedAt"])
+    .default("createdAt"),
+
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
+export type ProjectQueryInput = z.infer<typeof projectQuerySchema>;

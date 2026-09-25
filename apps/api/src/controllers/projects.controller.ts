@@ -1,23 +1,34 @@
 import { NextFunction, Request, Response } from "express";
 import {
   createProjectSchema,
+  projectQuerySchema,
   UpdateProjectSchema,
 } from "../schema/project.schema";
 import {
   createProject,
   deleteProject,
   getProjectById,
+  getProjectOptions,
   getProjects,
   updateProject,
 } from "../service/project.service";
 
 export const getProjectsController = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const projects = await getProjects();
+    const result = projectQuerySchema.safeParse(req.query);
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: result.error.flatten().fieldErrors,
+      });
+    }
+
+    const projects = await getProjects(result.data);
+
     return res.json(projects);
   } catch (error) {
     return next(error);
@@ -57,7 +68,7 @@ export const getProjetByIdController = async (
 
     if (Number.isNaN(id)) {
       return res.status(400).json({
-        message: "Invalid project id",
+        message: "Invalid project ID",
       });
     }
 
@@ -85,7 +96,7 @@ export const updateProjectController = async (
 
     if (Number.isNaN(id)) {
       return res.status(400).json({
-        message: "Invalid project id",
+        message: "Invalid project ID",
       });
     }
 
@@ -120,7 +131,7 @@ export const deleteProjectController = async (
     const id = Number(req.params.id);
     if (Number.isNaN(id)) {
       return res.status(400).json({
-        message: "Invalid project id",
+        message: "Invalid project ID",
       });
     }
     const project = await getProjectById(id);
@@ -132,6 +143,20 @@ export const deleteProjectController = async (
     await deleteProject(id);
 
     return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getProjectOptionsController = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projects = await getProjectOptions();
+
+    return res.json(projects);
   } catch (error) {
     return next(error);
   }

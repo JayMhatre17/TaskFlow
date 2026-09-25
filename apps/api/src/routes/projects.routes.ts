@@ -4,6 +4,7 @@ import { createProjectSchema } from "../schema/project.schema";
 import {
   createProjectController,
   deleteProjectController,
+  getProjectOptionsController,
   getProjectsController,
   getProjetByIdController,
   updateProjectController,
@@ -15,6 +16,8 @@ const router = Router();
 router.get("/", getProjectsController);
 
 router.post("/", createProjectController);
+
+router.get("/options", getProjectOptionsController);
 
 router.get("/:id", getProjetByIdController);
 

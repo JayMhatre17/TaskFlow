@@ -39,29 +39,37 @@ const SelectRHF = ({
       <Controller
         name={name}
         control={control}
-        render={({ field, fieldState }) => (
-          <>
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger>
-                <SelectValue placeholder={placeholder} />
-              </SelectTrigger>
+        render={({ field, fieldState }) => {
+          const selectedOption = options.find(
+            (option) => option.value === field.value,
+          );
 
-              <SelectContent alignItemWithTrigger={false}>
-                {options.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          return (
+            <>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder={placeholder}>
+                    {selectedOption?.label}
+                  </SelectValue>
+                </SelectTrigger>
 
-            {fieldState.error && (
-              <p className="mt-1 text-sm text-red-500">
-                {fieldState.error.message}
-              </p>
-            )}
-          </>
-        )}
+                <SelectContent alignItemWithTrigger={false}>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {fieldState.error && (
+                <p className="mt-1 text-sm text-red-500">
+                  {fieldState.error.message}
+                </p>
+              )}
+            </>
+          );
+        }}
       />
     </div>
   );

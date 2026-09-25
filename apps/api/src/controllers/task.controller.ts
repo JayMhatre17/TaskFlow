@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { z } from "zod";
 import {
   createTask,
   deleteTask,
@@ -7,18 +8,35 @@ import {
   getTasksByProjectId,
   updateTask,
 } from "../service/task.service";
-import { createTaskSchema, updateTaskSchema } from "../schema/task.schema";
+import {
+  createTaskSchema,
+  taskQuerySchema,
+  updateTaskSchema,
+} from "../schema/task.schema";
 
 export const getTasksController = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const tasks = await getTasks();
-    return res.json(tasks);
+    const query = taskQuerySchema.parse(req.query);
+    const tasks = await getTasks(query);
+    return res.status(200).json(tasks);
   } catch (error) {
-    return next(error);
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        message: "Invalid query parameters",
+        errors: error.flatten().fieldErrors,
+      });
+
+      return;
+    }
+    console.error(error);
+
+    res.status(500).json({
+      message: "Failed to fetch tasks",
+    });
   }
 };
 

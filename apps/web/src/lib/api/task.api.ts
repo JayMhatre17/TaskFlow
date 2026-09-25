@@ -12,6 +12,12 @@ export type Task = {
   priority: TaskPriority;
   dueDate: string | null;
   projectId: number;
+
+  project: {
+    id: number;
+    name: string;
+  } | null;
+
   createdAt: string;
   updatedAt: string;
 };
@@ -25,13 +31,41 @@ export type CreateTaskInput = {
   projectId: number;
 };
 
+export type TaskListResponse = {
+  data: Task[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
 export type UpdateTaskInput = Partial<CreateTaskInput>;
 
 // all tasks
-export const getTasks = () => {
-  return apiRequest<Task[]>({
+export const getTasks = (
+  page: number,
+  limit: number,
+  search?: string,
+  status?: string,
+  priority?: string,
+  projectId?: string,
+  sortBy?: string,
+  sortOrder?: string,
+) => {
+  return apiRequest<TaskListResponse>({
     method: "GET",
     path: "/api/tasks",
+    params: {
+      page,
+      limit,
+      search,
+      status,
+      priority,
+      projectId,
+      sortBy,
+      sortOrder,
+    },
   });
 };
 

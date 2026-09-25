@@ -11,7 +11,27 @@ export type Project = {
   createdAt: string;
   updatedAt: string;
 };
+export type ProjectSortField =
+  "name" | "status" | "startDate" | "dueDate" | "createdAt" | "updatedAt";
 
+export type ProjectQueryParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: Project["status"];
+  sortBy?: ProjectSortField;
+  sortOrder?: "asc" | "desc";
+};
+
+export type ProjectListResponse = {
+  data: Project[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
 export type CreateProjectInput = {
   name: string;
   description?: string;
@@ -22,10 +42,16 @@ export type CreateProjectInput = {
 
 export type UpdateProjectInput = Partial<CreateProjectInput>;
 
-export const getProjects = () => {
-  return apiRequest<Project[]>({
+export type ProjectOption = {
+  id: number;
+  name: string;
+};
+
+export const getProjects = (params?: ProjectQueryParams) => {
+  return apiRequest<ProjectListResponse>({
     method: "GET",
     path: "/api/projects",
+    params,
   });
 };
 
@@ -63,5 +89,12 @@ export const getTasksByProject = (projectId: number) => {
   return apiRequest<Task[]>({
     method: "GET",
     path: `/api/projects/${projectId}/tasks`,
+  });
+};
+
+export const getProjectOptions = () => {
+  return apiRequest<ProjectOption[]>({
+    method: "GET",
+    path: "/api/projects/options",
   });
 };

@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import SelectRHF from "../forms/SelectRHF";
-import { createTask, updateTask } from "@/lib/api/task.api";
+import { updateTask } from "@/lib/api/task.api";
 import { tskSchema, type TaskFormValues } from "./task.schema";
+import { useCreateTask } from "@/hooks/mutation/useCreateTask";
+import { useUpdateTask } from "@/hooks/mutation/useUpdateTask";
 
 type TaskFormProps = {
   mode: "create" | "edit";
@@ -48,7 +50,8 @@ const TaskForm = ({
     handleSubmit,
     formState: { errors, isSubmitting },
   } = form;
-
+  const { mutateAsync: createTask, isPending: isCreating } = useCreateTask();
+  const { mutateAsync: updateTask, isPending: isUpdating } = useUpdateTask();
   const onSubmit = async (data: TaskFormValues) => {
     try {
       const payload = {
@@ -57,10 +60,11 @@ const TaskForm = ({
       };
 
       if (mode === "create") {
-        const task = await createTask(payload);
+        await createTask(payload);
 
         toast.success("Task created successfully");
-        router.push(`/tasks/${task.id}`);
+
+        router.push("/tasks");
 
         return;
       }
@@ -69,7 +73,7 @@ const TaskForm = ({
         throw new Error("Task ID is required");
       }
 
-      const task = await updateTask(taskId, payload);
+      const task = await updateTask({ data: payload, id: taskId });
 
       toast.success("Task updated successfully");
       router.push(`/tasks/${task.id}`);
@@ -199,15 +203,15 @@ const TaskForm = ({
 
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isUpdating || isCreating}
             className="cursor-pointer"
           >
-            {isSubmitting
-              ? mode === "create"
+            {mode === "create"
+              ? isCreating
                 ? "Creating..."
-                : "Saving..."
-              : mode === "create"
-                ? "Create Task"
+                : "Create Task"
+              : isUpdating
+                ? "Saving..."
                 : "Save Changes"}
           </Button>
         </div>

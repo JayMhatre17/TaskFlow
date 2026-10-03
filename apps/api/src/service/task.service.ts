@@ -194,7 +194,10 @@ export const updateTask = async (
     }),
   };
 
-  const updatedTask = await db.orm.public.Task.where({ id }).update(updateData);
+  const updatedTask = await db.orm.public.Task.where({
+    id,
+    projectId: ownedProject.id,
+  }).update(updateData);
 
   if (!updatedTask) {
     return null;
@@ -216,7 +219,7 @@ export const deleteTask = async (id: number, userId: number) => {
   if (!project) {
     return false;
   }
-  return db.orm.public.Task.where({ id }).delete();
+  return db.orm.public.Task.where({ id, projectId: project.id }).delete();
 };
 
 export const getTasksByProjectId = async (

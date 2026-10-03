@@ -66,7 +66,7 @@ export const getProjetByIdController = async (
   try {
     const id = Number(req.params.id);
 
-    if (Number.isNaN(id)) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({
         message: "Invalid project ID",
       });
@@ -94,7 +94,7 @@ export const updateProjectController = async (
   try {
     const id = Number(req.params.id);
 
-    if (Number.isNaN(id)) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({
         message: "Invalid project ID",
       });
@@ -129,7 +129,7 @@ export const deleteProjectController = async (
 ) => {
   try {
     const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({
         message: "Invalid project ID",
       });

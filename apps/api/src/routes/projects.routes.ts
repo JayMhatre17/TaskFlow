@@ -1,6 +1,4 @@
 import { Router } from "express";
-import { createProject, getProjects } from "../service/project.service";
-import { createProjectSchema } from "../schema/project.schema";
 import {
   createProjectController,
   deleteProjectController,

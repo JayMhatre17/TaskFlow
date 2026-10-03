@@ -26,18 +26,13 @@ export const getTasksController = async (
     return res.status(200).json(tasks);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({
+      return res.status(400).json({
         message: "Invalid query parameters",
         errors: error.flatten().fieldErrors,
       });
-
-      return;
     }
-    console.error(error);
 
-    res.status(500).json({
-      message: "Failed to fetch tasks",
-    });
+    return next(error);
   }
 };
 
@@ -48,7 +43,7 @@ export const getTaskByIdController = async (
 ) => {
   try {
     const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({
         message: "Invalid task id",
       });
@@ -96,7 +91,7 @@ export const updateTaskController = async (
 ) => {
   try {
     const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({
         message: "Invalid task id",
       });
@@ -134,7 +129,7 @@ export const deleteTaskController = async (
 ) => {
   try {
     const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({
         message: "Invalid task id",
       });
@@ -161,7 +156,7 @@ export const getTasksByProjectController = async (
   try {
     const projectId = Number(req.params.projectId);
 
-    if (!Number.isInteger(projectId)) {
+    if (!Number.isSafeInteger(projectId) || projectId <= 0) {
       throw new ApiError(400, "Invalid project ID");
     }
 

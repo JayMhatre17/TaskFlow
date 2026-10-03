@@ -10,8 +10,11 @@ import {
   updateProjectController,
 } from "../controllers/projects.controller";
 import { getTasksByProjectController } from "../controllers/task.controller";
+import { requireAuth } from "../middlewares/require-auth.middleware";
 
 const router = Router();
+
+router.use(requireAuth);
 
 router.get("/", getProjectsController);
 

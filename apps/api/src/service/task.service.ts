@@ -25,10 +25,29 @@ const sortColumn = {
   createdAt: "createdAt",
   updatedAt: "updatedAt",
 } as const;
-export const getTasks = async (query: TaskQueryInput) => {
+export const getTasks = async (query: TaskQueryInput, userId: number) => {
   const offset = (query.page - 1) * query.limit;
-  let taskQuery = db.orm.public.Task;
-  const projects = await db.orm.public.Project.all();
+  const userProjects = await db.orm.public.Project.where({
+    ownerId: userId,
+  }).all();
+  if (userProjects.length === 0) {
+    return {
+      data: [],
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+  }
+  const projectIds = userProjects.map((project) => project.id);
+
+  let taskQuery = db.orm.public.Task.where((task) =>
+    or(...projectIds.map((projectId) => task.projectId.eq(projectId))),
+  );
+
+  const projects = userProjects;
 
   if (query.status) {
     taskQuery = taskQuery.where({
@@ -88,17 +107,26 @@ export const getTasks = async (query: TaskQueryInput) => {
   };
 };
 
-export const getTaskById = async (id: number) => {
-  const task = await db.orm.public.Task.first({
+export const getTaskById = async (id: number, userId: number) => {
+  const tasks = await db.orm.public.Task.where({
     id,
-  });
+  }).all();
+  const task = tasks[0];
+  if (!task) {
+    return null;
+  }
+  const project = await getOwnedProject(task.projectId, userId);
 
+  if (!project) {
+    return null;
+  }
   return attachProject(task);
 };
 
-export const createTask = async (data: CreateTaskInput) => {
+export const createTask = async (data: CreateTaskInput, userId: number) => {
   const project = await db.orm.public.Project.first({
     id: data.projectId,
+    ownerId: userId,
   });
 
   if (!project) {
@@ -115,70 +143,97 @@ export const createTask = async (data: CreateTaskInput) => {
         ? Temporal.Instant.from(`${data.dueDate}T00:00:00Z`)
         : undefined,
     projectId: data.projectId,
+    creatorId: userId,
   });
 
   return mapTaskFromDb(task);
 };
 
-export const updateTask = async (id: number, data: UpdateTaskInput) => {
-  if (data.projectId !== undefined) {
-    const project = await db.orm.public.Project.first({
-      id: data.projectId,
-    });
+export const updateTask = async (
+  id: number,
+  data: UpdateTaskInput,
+  userId: number,
+) => {
+  const tasks = await db.orm.public.Task.where({ id }).all();
+  const existingTask = tasks[0];
 
-    if (!project) {
-      throw new ApiError(404, "Project not found");
+  if (!existingTask) {
+    return null;
+  }
+
+  const ownedProject = await getOwnedProject(existingTask.projectId, userId);
+
+  if (!ownedProject) {
+    return null;
+  }
+
+  if (data.projectId !== undefined) {
+    const targetProject = await getOwnedProject(data.projectId, userId);
+
+    if (!targetProject) {
+      return null;
     }
   }
-  const updateData = {
-    ...(data.title !== undefined && {
-      title: data.title,
-    }),
 
+  const updateData = {
+    ...(data.title !== undefined && { title: data.title }),
     ...(data.description !== undefined && {
       description: data.description,
     }),
-
     ...(data.status !== undefined && {
       status: TASK_STATUS[data.status],
     }),
-
     ...(data.priority !== undefined && {
       priority: TASK_PRIORITY[data.priority],
     }),
-
     ...(data.dueDate !== undefined && {
       dueDate: Temporal.Instant.from(`${data.dueDate}T00:00:00Z`),
     }),
-
     ...(data.projectId !== undefined && {
       projectId: data.projectId,
     }),
   };
 
-  const task = await db.orm.public.Task.where({ id }).update(updateData);
+  const updatedTask = await db.orm.public.Task.where({ id }).update(updateData);
 
-  return mapTaskFromDb(task);
+  if (!updatedTask) {
+    return null;
+  }
+
+  return mapTaskFromDb(updatedTask);
 };
 
-export const deleteTask = async (id: number) => {
+export const deleteTask = async (id: number, userId: number) => {
+  const tasks = await db.orm.public.Task.where({ id }).all();
+  const task = tasks[0];
+
+  if (!task) {
+    return false;
+  }
+
+  const project = await getOwnedProject(task.projectId, userId);
+
+  if (!project) {
+    return false;
+  }
   return db.orm.public.Task.where({ id }).delete();
 };
 
-export const getTasksByProjectId = async (projectId: number) => {
-  const project = await db.orm.public.Project.first({
-    id: projectId,
-  });
+export const getTasksByProjectId = async (
+  projectId: number,
+  userId: number,
+) => {
+  const project = await getOwnedProject(projectId, userId);
 
   if (!project) {
-    throw new Error("Project not found");
+    return null;
   }
 
   const tasks = await db.orm.public.Task.where({
     projectId,
   }).all();
 
-  return tasks.map(mapTaskFromDb);
+  return Promise.all(tasks.map((task) => attachProject(task)));
 };
 const attachProject = async (task: TaskRecord | null) => {
   if (!task) {
@@ -210,4 +265,13 @@ const mapTaskFromDb = (task: TaskRecord) => {
     status: getTaskStatusLabel(task.status),
     priority: getTaskPriorityLabel(task.priority),
   };
+};
+
+const getOwnedProject = async (projectId: number, userId: number) => {
+  const projects = await db.orm.public.Project.where({
+    id: projectId,
+    ownerId: userId,
+  }).all();
+
+  return projects[0] ?? null;
 };

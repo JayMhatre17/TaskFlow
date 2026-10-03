@@ -1,5 +1,5 @@
 import request from "supertest";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import app from "../src/app";
 import {
   createTestProject,
@@ -7,9 +7,14 @@ import {
   deleteTestProject,
 } from "./helpers/project.helpers";
 import { createTestTask } from "./helpers/tasks.helper";
+import { authenticatedRequest, setupTestAuth } from "./helpers/auth.helper";
 
 describe("GET /api/projects", () => {
   const createdProjectIds: number[] = [];
+
+  beforeAll(async () => {
+    await setupTestAuth();
+  });
 
   afterEach(async () => {
     for (const id of createdProjectIds) {
@@ -18,7 +23,11 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.length = 0;
   });
+  it("should return 401 if user is not authenticated", async () => {
+    const response = await request(app).get("/api/projects");
 
+    expect(response.status).toBe(401);
+  });
   it("should return projects successfully", async () => {
     const project = await createTestProject({
       name: "[TEST] GET Projects",
@@ -26,7 +35,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(project.id);
 
-    const response = await request(app).get("/api/projects");
+    const response = await authenticatedRequest().get("/api/projects");
 
     expect(response.status).toBe(200);
 
@@ -59,7 +68,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(project.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       page: 1,
       limit: 1,
     });
@@ -89,15 +98,19 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(...projects.map((project) => project.id));
 
-    const page1Response = await request(app).get("/api/projects").query({
-      page: 1,
-      limit: 1,
-    });
+    const page1Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        page: 1,
+        limit: 1,
+      });
 
-    const page2Response = await request(app).get("/api/projects").query({
-      page: 2,
-      limit: 1,
-    });
+    const page2Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        page: 2,
+        limit: 1,
+      });
 
     expect(page1Response.status).toBe(200);
     expect(page2Response.status).toBe(200);
@@ -133,17 +146,21 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(...projects.map((project) => project.id));
 
-    const page1Response = await request(app).get("/api/projects").query({
-      search,
-      page: 1,
-      limit: 1,
-    });
+    const page1Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        page: 1,
+        limit: 1,
+      });
 
-    const page2Response = await request(app).get("/api/projects").query({
-      search,
-      page: 2,
-      limit: 1,
-    });
+    const page2Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        page: 2,
+        limit: 1,
+      });
 
     expect(page1Response.status).toBe(200);
     expect(page2Response.status).toBe(200);
@@ -183,17 +200,21 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(...projects.map((project) => project.id));
 
-    const page1Response = await request(app).get("/api/projects").query({
-      search,
-      page: 1,
-      limit: 1,
-    });
+    const page1Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        page: 1,
+        limit: 1,
+      });
 
-    const page2Response = await request(app).get("/api/projects").query({
-      search,
-      page: 2,
-      limit: 1,
-    });
+    const page2Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        page: 2,
+        limit: 1,
+      });
 
     expect(page1Response.status).toBe(200);
     expect(page2Response.status).toBe(200);
@@ -232,7 +253,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(matchingProject.id, nonMatchingProject.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
     });
 
@@ -263,7 +284,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(matchingProject.id, nonMatchingProject.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
     });
 
@@ -299,7 +320,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(nameMatch.id, descriptionMatch.id, noMatch.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
     });
 
@@ -327,7 +348,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(project.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search: search.toLowerCase(),
     });
 
@@ -367,17 +388,21 @@ describe("GET /api/projects", () => {
       unrelatedProject.id,
     );
 
-    const page1Response = await request(app).get("/api/projects").query({
-      search,
-      page: 1,
-      limit: 2,
-    });
+    const page1Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        page: 1,
+        limit: 2,
+      });
 
-    const page2Response = await request(app).get("/api/projects").query({
-      search,
-      page: 2,
-      limit: 2,
-    });
+    const page2Response = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        page: 2,
+        limit: 2,
+      });
 
     expect(page1Response.status).toBe(200);
     expect(page2Response.status).toBe(200);
@@ -433,7 +458,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(activeProject.id, onHoldProject.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
       status: "Active",
     });
@@ -476,7 +501,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(activeProject.id, onHoldProject.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
       status: "On Hold",
     });
@@ -528,7 +553,7 @@ describe("GET /api/projects", () => {
       wrongSearchProject.id,
     );
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
       status: "Active",
     });
@@ -588,7 +613,7 @@ describe("GET /api/projects", () => {
       wrongSearchProject.id,
     );
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
       status: "Active",
     });
@@ -637,7 +662,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(projectB.id, projectA.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
       sortBy: "name",
       sortOrder: "asc",
@@ -675,7 +700,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(projectA.id, projectB.id);
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
       sortBy: "name",
       sortOrder: "desc",
@@ -715,11 +740,13 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(activeProject.id, onHoldProject.id);
 
-    const ascendingResponse = await request(app).get("/api/projects").query({
-      search,
-      sortBy: "status",
-      sortOrder: "asc",
-    });
+    const ascendingResponse = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        sortBy: "status",
+        sortOrder: "asc",
+      });
 
     expect(ascendingResponse.status).toBe(200);
     expect(ascendingResponse.body.data).toHaveLength(2);
@@ -733,11 +760,13 @@ describe("GET /api/projects", () => {
       totalPages: 1,
     });
 
-    const descendingResponse = await request(app).get("/api/projects").query({
-      search,
-      sortBy: "status",
-      sortOrder: "desc",
-    });
+    const descendingResponse = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        sortBy: "status",
+        sortOrder: "desc",
+      });
 
     expect(descendingResponse.status).toBe(200);
     expect(descendingResponse.body.data).toHaveLength(2);
@@ -766,11 +795,13 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(earlyProject.id, lateProject.id);
 
-    const ascendingResponse = await request(app).get("/api/projects").query({
-      search,
-      sortBy: "startDate",
-      sortOrder: "asc",
-    });
+    const ascendingResponse = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        sortBy: "startDate",
+        sortOrder: "asc",
+      });
 
     expect(ascendingResponse.status).toBe(200);
     expect(ascendingResponse.body.data).toHaveLength(2);
@@ -784,11 +815,13 @@ describe("GET /api/projects", () => {
       totalPages: 1,
     });
 
-    const descendingResponse = await request(app).get("/api/projects").query({
-      search,
-      sortBy: "startDate",
-      sortOrder: "desc",
-    });
+    const descendingResponse = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        sortBy: "startDate",
+        sortOrder: "desc",
+      });
 
     expect(descendingResponse.status).toBe(200);
     expect(descendingResponse.body.data).toHaveLength(2);
@@ -817,11 +850,13 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(earlyProject.id, lateProject.id);
 
-    const ascendingResponse = await request(app).get("/api/projects").query({
-      search,
-      sortBy: "dueDate",
-      sortOrder: "asc",
-    });
+    const ascendingResponse = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        sortBy: "dueDate",
+        sortOrder: "asc",
+      });
 
     expect(ascendingResponse.status).toBe(200);
     expect(ascendingResponse.body.data).toHaveLength(2);
@@ -835,11 +870,13 @@ describe("GET /api/projects", () => {
       totalPages: 1,
     });
 
-    const descendingResponse = await request(app).get("/api/projects").query({
-      search,
-      sortBy: "dueDate",
-      sortOrder: "desc",
-    });
+    const descendingResponse = await authenticatedRequest()
+      .get("/api/projects")
+      .query({
+        search,
+        sortBy: "dueDate",
+        sortOrder: "desc",
+      });
 
     expect(descendingResponse.status).toBe(200);
     expect(descendingResponse.body.data).toHaveLength(2);
@@ -857,7 +894,7 @@ describe("GET /api/projects", () => {
     ["0", "zero"],
     ["-1", "negative"],
   ])("should reject invalid page value: %s", async (page) => {
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       page,
     });
 
@@ -871,7 +908,7 @@ describe("GET /api/projects", () => {
     ["-1", "negative"],
     ["101", "above maximum"],
   ])("should reject invalid limit value: %s", async (limit) => {
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       limit,
     });
 
@@ -881,7 +918,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("limit");
   });
   it("should reject an invalid status", async () => {
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       status: "Completed",
     });
 
@@ -891,7 +928,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("status");
   });
   it("should reject an invalid sortBy value", async () => {
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       sortBy: "invalidField",
     });
 
@@ -901,7 +938,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("sortBy");
   });
   it("should reject an invalid sortOrder value", async () => {
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       sortOrder: "random",
     });
 
@@ -927,7 +964,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(...projects.map((project) => project.id));
 
-    const response = await request(app).get("/api/projects").query({
+    const response = await authenticatedRequest().get("/api/projects").query({
       search,
       page: 3,
       limit: 2,
@@ -962,7 +999,9 @@ describe("GET /api/projects", () => {
 
       createdProjectIds.push(project.id);
 
-      const response = await request(app).get(`/api/projects/${project.id}`);
+      const response = await authenticatedRequest().get(
+        `/api/projects/${project.id}`,
+      );
 
       expect(response.status).toBe(200);
 
@@ -975,7 +1014,9 @@ describe("GET /api/projects", () => {
     });
 
     it("should return 404 when the project does not exist", async () => {
-      const response = await request(app).get("/api/projects/999999999");
+      const response = await authenticatedRequest().get(
+        "/api/projects/999999999",
+      );
 
       expect(response.status).toBe(404);
 
@@ -985,7 +1026,9 @@ describe("GET /api/projects", () => {
     });
 
     it("should return 400 for an invalid project ID", async () => {
-      const response = await request(app).get("/api/projects/invalid");
+      const response = await authenticatedRequest().get(
+        "/api/projects/invalid",
+      );
 
       expect(response.status).toBe(400);
 
@@ -1012,7 +1055,7 @@ describe("GET /api/projects", () => {
         dueDate: "2026-12-31",
       };
 
-      const response = await request(app)
+      const response = await authenticatedRequest()
         .post("/api/projects")
         .send(projectData);
 
@@ -1036,7 +1079,7 @@ describe("GET /api/projects", () => {
     });
   });
   it("should reject a project when name is missing", async () => {
-    const response = await request(app).post("/api/projects").send({
+    const response = await authenticatedRequest().post("/api/projects").send({
       description: "Project without a name",
       status: "Active",
       startDate: "2026-01-01",
@@ -1050,7 +1093,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("name");
   });
   it("should reject a project when name is empty", async () => {
-    const response = await request(app).post("/api/projects").send({
+    const response = await authenticatedRequest().post("/api/projects").send({
       name: "",
       description: "Project with empty name",
       status: "Active",
@@ -1065,7 +1108,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("name");
   });
   it("should reject a project when name contains only whitespace", async () => {
-    const response = await request(app).post("/api/projects").send({
+    const response = await authenticatedRequest().post("/api/projects").send({
       name: "   ",
       description: "Project with whitespace name",
       status: "Active",
@@ -1080,7 +1123,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("name");
   });
   it("should reject a project with an invalid status", async () => {
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .post("/api/projects")
       .send({
         name: `[TEST] Invalid Status ${Date.now()}`,
@@ -1097,7 +1140,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("status");
   });
   it("should reject a project when status is missing", async () => {
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .post("/api/projects")
       .send({
         name: `[TEST] Missing Status ${Date.now()}`,
@@ -1113,7 +1156,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("status");
   });
   it("should reject a project when startDate is missing", async () => {
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .post("/api/projects")
       .send({
         name: `[TEST] Missing Start Date ${Date.now()}`,
@@ -1129,7 +1172,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("startDate");
   });
   it("should reject a project when dueDate is missing", async () => {
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .post("/api/projects")
       .send({
         name: `[TEST] Missing Due Date ${Date.now()}`,
@@ -1145,7 +1188,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("dueDate");
   });
   it("should reject an invalid startDate", async () => {
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .post("/api/projects")
       .send({
         name: `[TEST] Invalid Start Date ${Date.now()}`,
@@ -1162,7 +1205,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("startDate");
   });
   it("should reject an invalid dueDate", async () => {
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .post("/api/projects")
       .send({
         name: `[TEST] Invalid Due Date ${Date.now()}`,
@@ -1179,7 +1222,7 @@ describe("GET /api/projects", () => {
     expect(response.body.errors).toHaveProperty("dueDate");
   });
   it("should return validation errors for multiple missing fields", async () => {
-    const response = await request(app).post("/api/projects").send({
+    const response = await authenticatedRequest().post("/api/projects").send({
       description: "Incomplete project",
     });
 
@@ -1201,7 +1244,9 @@ describe("GET /api/projects", () => {
       dueDate: "2026-11-30",
     };
 
-    const response = await request(app).post("/api/projects").send(projectData);
+    const response = await authenticatedRequest()
+      .post("/api/projects")
+      .send(projectData);
 
     expect(response.status).toBe(201);
 
@@ -1223,7 +1268,9 @@ describe("GET /api/projects", () => {
       dueDate: "2026-12-31",
     };
 
-    const response = await request(app).post("/api/projects").send(projectData);
+    const response = await authenticatedRequest()
+      .post("/api/projects")
+      .send(projectData);
 
     expect(response.status).toBe(201);
 
@@ -1245,7 +1292,9 @@ describe("GET /api/projects", () => {
       dueDate: "2026-10-20",
     };
 
-    const response = await request(app).post("/api/projects").send(projectData);
+    const response = await authenticatedRequest()
+      .post("/api/projects")
+      .send(projectData);
 
     expect(response.status).toBe(201);
 
@@ -1268,7 +1317,7 @@ describe("GET /api/projects", () => {
 
     createdProjectIds.push(project.id);
 
-    const response = await request(app).get("/api/projects/options");
+    const response = await authenticatedRequest().get("/api/projects/options");
 
     expect(response.status).toBe(200);
 
@@ -1287,6 +1336,10 @@ describe("GET /api/projects", () => {
 describe("GET /api/projects/options", () => {
   const createdProjectIds: number[] = [];
 
+  beforeAll(async () => {
+    await setupTestAuth();
+  });
+
   afterEach(async () => {
     for (const id of createdProjectIds) {
       await deleteTestProject(id);
@@ -1304,7 +1357,7 @@ describe("GET /api/projects/options", () => {
 
     createdProjectIds.push(project.id);
 
-    const response = await request(app).get("/api/projects/options");
+    const response = await authenticatedRequest().get("/api/projects/options");
 
     expect(response.status).toBe(200);
 
@@ -1322,6 +1375,10 @@ describe("GET /api/projects/options", () => {
 });
 describe("PATCH /api/projects/:id", () => {
   const createdProjectIds: number[] = [];
+
+  beforeAll(async () => {
+    await setupTestAuth();
+  });
 
   afterEach(async () => {
     for (const id of createdProjectIds) {
@@ -1350,7 +1407,7 @@ describe("PATCH /api/projects/:id", () => {
       dueDate: "2026-11-30",
     };
 
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .patch(`/api/projects/${project.id}`)
       .send(updateData);
 
@@ -1376,7 +1433,7 @@ describe("PATCH /api/projects/:id", () => {
 
     createdProjectIds.push(project.id);
 
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .patch(`/api/projects/${project.id}`)
       .send({
         name: "[TEST] Updated Name",
@@ -1392,18 +1449,22 @@ describe("PATCH /api/projects/:id", () => {
     });
   });
   it("should return 404 when updating a nonexistent project", async () => {
-    const response = await request(app).patch("/api/projects/999999999").send({
-      name: "[TEST] Nonexistent Project",
-    });
+    const response = await authenticatedRequest()
+      .patch("/api/projects/999999999")
+      .send({
+        name: "[TEST] Nonexistent Project",
+      });
 
     expect(response.status).toBe(404);
 
     expect(response.body).toHaveProperty("message", "Project not found");
   });
   it("should return 400 for an invalid project ID", async () => {
-    const response = await request(app).patch("/api/projects/invalid").send({
-      name: "[TEST] Invalid ID",
-    });
+    const response = await authenticatedRequest()
+      .patch("/api/projects/invalid")
+      .send({
+        name: "[TEST] Invalid ID",
+      });
 
     expect(response.status).toBe(400);
 
@@ -1416,7 +1477,7 @@ describe("PATCH /api/projects/:id", () => {
 
     createdProjectIds.push(project.id);
 
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .patch(`/api/projects/${project.id}`)
       .send({
         status: "Completed",
@@ -1430,28 +1491,40 @@ describe("PATCH /api/projects/:id", () => {
   });
 });
 describe("DELETE /api/projects/:id", () => {
+  beforeAll(async () => {
+    await setupTestAuth();
+  });
+
   it("should delete a project successfully", async () => {
     const project = await createTestProject({
       name: `[TEST] Delete Project ${Date.now()}`,
     });
 
-    const response = await request(app).delete(`/api/projects/${project.id}`);
+    const response = await authenticatedRequest().delete(
+      `/api/projects/${project.id}`,
+    );
 
     expect(response.status).toBe(204);
 
-    const getResponse = await request(app).get(`/api/projects/${project.id}`);
+    const getResponse = await authenticatedRequest().get(
+      `/api/projects/${project.id}`,
+    );
 
     expect(getResponse.status).toBe(404);
   });
   it("should return 404 when deleting a nonexistent project", async () => {
-    const response = await request(app).delete("/api/projects/999999999");
+    const response = await authenticatedRequest().delete(
+      "/api/projects/999999999",
+    );
 
     expect(response.status).toBe(404);
 
     expect(response.body).toHaveProperty("message", "Project not found");
   });
   it("should return 400 for an invalid project ID", async () => {
-    const response = await request(app).delete("/api/projects/invalid");
+    const response = await authenticatedRequest().delete(
+      "/api/projects/invalid",
+    );
 
     expect(response.status).toBe(400);
 
@@ -1467,13 +1540,15 @@ describe("DELETE /api/projects/:id", () => {
       title: `[TEST] Cascade Task ${Date.now()}`,
     });
 
-    const deleteResponse = await request(app).delete(
+    const deleteResponse = await authenticatedRequest().delete(
       `/api/projects/${project.id}`,
     );
 
     expect(deleteResponse.status).toBe(204);
 
-    const taskResponse = await request(app).get(`/api/tasks/${task.id}`);
+    const taskResponse = await authenticatedRequest().get(
+      `/api/tasks/${task.id}`,
+    );
 
     expect(taskResponse.status).toBe(404);
   });

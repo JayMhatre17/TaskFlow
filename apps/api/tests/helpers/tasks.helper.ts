@@ -1,5 +1,4 @@
-import request from "supertest";
-import app from "../../src/app";
+import { authenticatedRequest } from "./auth.helper";
 
 type CreateTestTaskInput = {
   title?: string;
@@ -11,7 +10,7 @@ type CreateTestTaskInput = {
 };
 
 export const createTestTask = async (data: CreateTestTaskInput) => {
-  const response = await request(app)
+  const response = await authenticatedRequest()
     .post("/api/tasks")
     .send({
       title: data.title ?? `[TEST] Task ${Date.now()}`,

@@ -1,5 +1,6 @@
 import request from "supertest";
 import app from "../../src/app";
+import { authenticatedRequest } from "./auth.helper";
 
 type CreateTestProjectInput = {
   name?: string;
@@ -10,7 +11,7 @@ type CreateTestProjectInput = {
 };
 
 export const createTestProject = async (data: CreateTestProjectInput = {}) => {
-  const response = await request(app)
+  const response = await authenticatedRequest()
     .post("/api/projects")
     .send({
       name: data.name ?? `[TEST] Project ${Date.now()}`,
@@ -32,7 +33,7 @@ export const createTestProject = async (data: CreateTestProjectInput = {}) => {
 };
 
 export const deleteTestProject = async (id: number) => {
-  const response = await request(app).delete(`/api/projects/${id}`);
+  const response = await authenticatedRequest().delete(`/api/projects/${id}`);
 
   if (response.status !== 204 && response.status !== 404) {
     throw new Error(

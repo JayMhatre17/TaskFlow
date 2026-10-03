@@ -1,18 +1,44 @@
-import { afterEach, describe, expect, it } from "vitest";
-import request from "supertest";
-import app from "../src/app";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  authenticatedRequest,
+  authenticatedRequestWithSession,
+  createAuthenticatedAgent,
+  setupTestAuth,
+} from "./helpers/auth.helper";
+import {
+  createTestProject,
+  deleteTestProject,
+} from "./helpers/project.helpers";
 
 describe("Task API", () => {
   let createdTaskId: number | undefined;
+  let testProjectId: number;
+  let sessionA: string;
+  let sessionB: string;
+
+  beforeAll(async () => {
+    sessionA = await setupTestAuth();
+    sessionB = await setupTestAuth();
+  });
+  beforeAll(async () => {
+    await setupTestAuth();
+    const project = await createTestProject();
+    testProjectId = project.id;
+  });
 
   afterEach(async () => {
     if (createdTaskId) {
-      await request(app).delete(`/api/tasks/${createdTaskId}`);
+      await authenticatedRequest().delete(`/api/tasks/${createdTaskId}`);
       createdTaskId = undefined;
     }
   });
+  afterAll(async () => {
+    if (testProjectId) {
+      await deleteTestProject(testProjectId);
+    }
+  });
   it("should get tasks", async () => {
-    const response = await request(app).get("/api/tasks");
+    const response = await authenticatedRequest().get("/api/tasks");
 
     expect(response.status).toBe(200);
 
@@ -21,12 +47,12 @@ describe("Task API", () => {
   });
 
   it("should create a task", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Automated test task",
       description: "[TEST] Created by Vitest",
       status: "TODO",
       priority: "HIGH",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(201);
@@ -38,19 +64,23 @@ describe("Task API", () => {
     createdTaskId = response.body.id;
   });
   it("should get a task by id", async () => {
-    const createResponse = await request(app).post("/api/tasks").send({
-      title: "[TEST] Get task by id",
-      description: "[TEST] Created by Vitest",
-      status: "TODO",
-      priority: "HIGH",
-      projectId: 1,
-    });
+    const createResponse = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Get task by id",
+        description: "[TEST] Created by Vitest",
+        status: "TODO",
+        priority: "HIGH",
+        projectId: testProjectId,
+      });
 
     expect(createResponse.status).toBe(201);
 
     createdTaskId = createResponse.body.id;
 
-    const response = await request(app).get(`/api/tasks/${createdTaskId}`);
+    const response = await authenticatedRequest().get(
+      `/api/tasks/${createdTaskId}`,
+    );
 
     expect(response.status).toBe(200);
 
@@ -60,24 +90,26 @@ describe("Task API", () => {
     expect(response.body.priority).toBe("HIGH");
   });
   it("should return 404 for a non-existent task", async () => {
-    const response = await request(app).get("/api/tasks/999999999");
+    const response = await authenticatedRequest().get("/api/tasks/999999999");
 
     expect(response.status).toBe(404);
   });
   it("should update a task", async () => {
-    const createResponse = await request(app).post("/api/tasks").send({
-      title: "[TEST] Update task",
-      description: "[TEST] Before update",
-      status: "TODO",
-      priority: "LOW",
-      projectId: 1,
-    });
+    const createResponse = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Update task",
+        description: "[TEST] Before update",
+        status: "TODO",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
 
     expect(createResponse.status).toBe(201);
 
     createdTaskId = createResponse.body.id;
 
-    const response = await request(app)
+    const response = await authenticatedRequest()
       .patch(`/api/tasks/${createdTaskId}`)
       .send({
         title: "[TEST] Updated task",
@@ -95,19 +127,21 @@ describe("Task API", () => {
     expect(response.body.priority).toBe("HIGH");
   });
   it("should delete a task", async () => {
-    const createResponse = await request(app).post("/api/tasks").send({
-      title: "[TEST] Delete task",
-      description: "[TEST] Will be deleted",
-      status: "TODO",
-      priority: "LOW",
-      projectId: 1,
-    });
+    const createResponse = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Delete task",
+        description: "[TEST] Will be deleted",
+        status: "TODO",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
 
     expect(createResponse.status).toBe(201);
 
     createdTaskId = createResponse.body.id;
 
-    const deleteResponse = await request(app).delete(
+    const deleteResponse = await authenticatedRequest().delete(
       `/api/tasks/${createdTaskId}`,
     );
 
@@ -116,37 +150,37 @@ describe("Task API", () => {
     // Prevent afterEach from trying to delete it again
     createdTaskId = undefined;
 
-    const getResponse = await request(app).get(
+    const getResponse = await authenticatedRequest().get(
       `/api/tasks/${createResponse.body.id}`,
     );
 
     expect(getResponse.status).toBe(404);
   });
   it("should reject an invalid task status", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Invalid status",
       description: "[TEST] Should fail",
       status: "INVALID_STATUS",
       priority: "HIGH",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(400);
   });
 
   it("should reject an invalid task priority", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Invalid priority",
       description: "[TEST] Should fail",
       status: "TODO",
       priority: "INVALID_PRIORITY",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(400);
   });
   it("should reject a task with a non-existent project", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Invalid project",
       description: "[TEST] Should fail",
       status: "TODO",
@@ -158,19 +192,21 @@ describe("Task API", () => {
   });
 
   it("should partially update a task", async () => {
-    const createResponse = await request(app).post("/api/tasks").send({
-      title: "[TEST] Partial update",
-      description: "[TEST] Original description",
-      status: "TODO",
-      priority: "LOW",
-      projectId: 1,
-    });
+    const createResponse = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Partial update",
+        description: "[TEST] Original description",
+        status: "TODO",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
 
     expect(createResponse.status).toBe(201);
 
     createdTaskId = createResponse.body.id;
 
-    const updateResponse = await request(app)
+    const updateResponse = await authenticatedRequest()
       .patch(`/api/tasks/${createdTaskId}`)
       .send({
         status: "IN_PROGRESS",
@@ -187,39 +223,43 @@ describe("Task API", () => {
     expect(updateResponse.body.title).toBe("[TEST] Partial update");
     expect(updateResponse.body.description).toBe("[TEST] Original description");
     expect(updateResponse.body.priority).toBe("LOW");
-    expect(updateResponse.body.projectId).toBe(1);
+    expect(updateResponse.body.projectId).toBe(testProjectId);
   });
   it("should return 404 when updating a non-existent task", async () => {
-    const response = await request(app).patch("/api/tasks/999999999").send({
-      status: "IN_PROGRESS",
-    });
+    const response = await authenticatedRequest()
+      .patch("/api/tasks/999999999")
+      .send({
+        status: "IN_PROGRESS",
+      });
 
     expect(response.status).toBe(404);
   });
   it("should filter tasks by status", async () => {
-    const todoResponse = await request(app).post("/api/tasks").send({
+    const todoResponse = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] TODO filter task",
       description: "[TEST] Status filter",
       status: "TODO",
       priority: "LOW",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(todoResponse.status).toBe(201);
 
-    const completedResponse = await request(app).post("/api/tasks").send({
-      title: "[TEST] COMPLETED filter task",
-      description: "[TEST] Status filter",
-      status: "COMPLETED",
-      priority: "LOW",
-      projectId: 1,
-    });
+    const completedResponse = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] COMPLETED filter task",
+        description: "[TEST] Status filter",
+        status: "COMPLETED",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
 
     expect(completedResponse.status).toBe(201);
 
     createdTaskId = completedResponse.body.id;
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       status: "TODO",
     });
 
@@ -234,32 +274,32 @@ describe("Task API", () => {
     ).toBe(true);
 
     // TODO task also needs cleanup
-    await request(app).delete(`/api/tasks/${todoResponse.body.id}`);
+    await authenticatedRequest().delete(`/api/tasks/${todoResponse.body.id}`);
   });
   it("should filter tasks by priority", async () => {
-    const lowResponse = await request(app).post("/api/tasks").send({
+    const lowResponse = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] LOW priority filter task",
       description: "[TEST] Priority filter",
       status: "TODO",
       priority: "LOW",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(lowResponse.status).toBe(201);
 
-    const highResponse = await request(app).post("/api/tasks").send({
+    const highResponse = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] HIGH priority filter task",
       description: "[TEST] Priority filter",
       status: "TODO",
       priority: "HIGH",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(highResponse.status).toBe(201);
 
     createdTaskId = highResponse.body.id;
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       priority: "LOW",
     });
 
@@ -272,11 +312,21 @@ describe("Task API", () => {
       ),
     ).toBe(true);
 
-    await request(app).delete(`/api/tasks/${lowResponse.body.id}`);
+    await authenticatedRequest().delete(`/api/tasks/${lowResponse.body.id}`);
   });
   it("should filter tasks by project", async () => {
-    const response = await request(app).get("/api/tasks").query({
-      projectId: 1,
+    const taskResponse = await authenticatedRequest().post("/api/tasks").send({
+      title: "[TEST] Project filter task",
+      description: "Task for project filtering",
+      status: "TODO",
+      priority: "HIGH",
+      projectId: testProjectId,
+    });
+
+    expect(taskResponse.status).toBe(201);
+
+    const response = await authenticatedRequest().get("/api/tasks").query({
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(200);
@@ -284,36 +334,42 @@ describe("Task API", () => {
 
     expect(
       response.body.data.every(
-        (task: { projectId: number }) => task.projectId === 1,
+        (task: { projectId: number }) => task.projectId === testProjectId,
       ),
     ).toBe(true);
+
+    await authenticatedRequest().delete(`/api/tasks/${taskResponse.body.id}`);
   });
   it("should search tasks by title or description", async () => {
-    const titleResponse = await request(app).post("/api/tasks").send({
+    const titleResponse = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Unique Search Title",
       description: "[TEST] Normal description",
       status: "TODO",
       priority: "LOW",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(titleResponse.status).toBe(201);
 
-    const descriptionResponse = await request(app).post("/api/tasks").send({
-      title: "[TEST] Normal title",
-      description: "[TEST] Unique Search Description",
-      status: "TODO",
-      priority: "LOW",
-      projectId: 1,
-    });
+    const descriptionResponse = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Normal title",
+        description: "[TEST] Unique Search Description",
+        status: "TODO",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
 
     expect(descriptionResponse.status).toBe(201);
 
     createdTaskId = descriptionResponse.body.id;
 
-    const titleSearchResponse = await request(app).get("/api/tasks").query({
-      search: "Unique Search Title",
-    });
+    const titleSearchResponse = await authenticatedRequest()
+      .get("/api/tasks")
+      .query({
+        search: "Unique Search Title",
+      });
 
     expect(titleSearchResponse.status).toBe(200);
 
@@ -323,7 +379,7 @@ describe("Task API", () => {
       ),
     ).toBe(true);
 
-    const descriptionSearchResponse = await request(app)
+    const descriptionSearchResponse = await authenticatedRequest()
       .get("/api/tasks")
       .query({
         search: "Unique Search Description",
@@ -337,45 +393,49 @@ describe("Task API", () => {
       ),
     ).toBe(true);
 
-    await request(app).delete(`/api/tasks/${titleResponse.body.id}`);
+    await authenticatedRequest().delete(`/api/tasks/${titleResponse.body.id}`);
   });
   it("should filter tasks using multiple filters", async () => {
-    const matchingTask = await request(app).post("/api/tasks").send({
+    const matchingTask = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Combined filter matching task",
       description: "[TEST] Combined filters",
       status: "TODO",
       priority: "HIGH",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(matchingTask.status).toBe(201);
 
-    const statusMismatch = await request(app).post("/api/tasks").send({
-      title: "[TEST] Combined filter status mismatch",
-      description: "[TEST] Combined filters",
-      status: "COMPLETED",
-      priority: "HIGH",
-      projectId: 1,
-    });
+    const statusMismatch = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Combined filter status mismatch",
+        description: "[TEST] Combined filters",
+        status: "COMPLETED",
+        priority: "HIGH",
+        projectId: testProjectId,
+      });
 
     expect(statusMismatch.status).toBe(201);
 
-    const priorityMismatch = await request(app).post("/api/tasks").send({
-      title: "[TEST] Combined filter priority mismatch",
-      description: "[TEST] Combined filters",
-      status: "TODO",
-      priority: "LOW",
-      projectId: 1,
-    });
+    const priorityMismatch = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Combined filter priority mismatch",
+        description: "[TEST] Combined filters",
+        status: "TODO",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
 
     expect(priorityMismatch.status).toBe(201);
 
     createdTaskId = priorityMismatch.body.id;
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       status: "TODO",
       priority: "HIGH",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(200);
@@ -391,15 +451,15 @@ describe("Task API", () => {
         (task: { status: string; priority: string; projectId: number }) =>
           task.status === "TODO" &&
           task.priority === "HIGH" &&
-          task.projectId === 1,
+          task.projectId === testProjectId,
       ),
     ).toBe(true);
 
-    await request(app).delete(`/api/tasks/${matchingTask.body.id}`);
-    await request(app).delete(`/api/tasks/${statusMismatch.body.id}`);
+    await authenticatedRequest().delete(`/api/tasks/${matchingTask.body.id}`);
+    await authenticatedRequest().delete(`/api/tasks/${statusMismatch.body.id}`);
   });
   it("should paginate tasks", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       page: 1,
       limit: 2,
     });
@@ -419,14 +479,14 @@ describe("Task API", () => {
     const taskIds: number[] = [];
 
     for (let i = 1; i <= 5; i++) {
-      const response = await request(app)
+      const response = await authenticatedRequest()
         .post("/api/tasks")
         .send({
           title: `[TEST] Pagination last page ${i}`,
           description: "[TEST] Pagination",
           status: "TODO",
           priority: "LOW",
-          projectId: 1,
+          projectId: testProjectId,
         });
 
       expect(response.status).toBe(201);
@@ -434,10 +494,12 @@ describe("Task API", () => {
       taskIds.push(response.body.id);
     }
 
-    const firstPageResponse = await request(app).get("/api/tasks").query({
-      page: 1,
-      limit: 2,
-    });
+    const firstPageResponse = await authenticatedRequest()
+      .get("/api/tasks")
+      .query({
+        page: 1,
+        limit: 2,
+      });
 
     expect(firstPageResponse.status).toBe(200);
 
@@ -447,10 +509,12 @@ describe("Task API", () => {
     expect(total).toBeGreaterThanOrEqual(5);
     expect(totalPages).toBe(Math.ceil(total / 2));
 
-    const lastPageResponse = await request(app).get("/api/tasks").query({
-      page: totalPages,
-      limit: 2,
-    });
+    const lastPageResponse = await authenticatedRequest()
+      .get("/api/tasks")
+      .query({
+        page: totalPages,
+        limit: 2,
+      });
 
     expect(lastPageResponse.status).toBe(200);
 
@@ -463,11 +527,11 @@ describe("Task API", () => {
     expect(lastPageResponse.body.data.length).toBeLessThanOrEqual(2);
 
     for (const id of taskIds) {
-      await request(app).delete(`/api/tasks/${id}`);
+      await authenticatedRequest().delete(`/api/tasks/${id}`);
     }
   });
   it("should return empty data for a page beyond the last page", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       page: 1,
       limit: 2,
     });
@@ -479,7 +543,7 @@ describe("Task API", () => {
 
     expect(totalPages).toBe(Math.ceil(total / 2));
 
-    const beyondLastPageResponse = await request(app)
+    const beyondLastPageResponse = await authenticatedRequest()
       .get("/api/tasks")
       .query({
         page: totalPages + 1,
@@ -502,14 +566,14 @@ describe("Task API", () => {
     const taskIds: number[] = [];
 
     for (let i = 1; i <= 4; i++) {
-      const response = await request(app)
+      const response = await authenticatedRequest()
         .post("/api/tasks")
         .send({
           title: `[TEST] Offset pagination ${i}`,
           description: "[TEST] Offset pagination",
           status: "TODO",
           priority: "LOW",
-          projectId: 1,
+          projectId: testProjectId,
         });
 
       expect(response.status).toBe(201);
@@ -517,14 +581,14 @@ describe("Task API", () => {
       taskIds.push(response.body.id);
     }
 
-    const page1Response = await request(app).get("/api/tasks").query({
+    const page1Response = await authenticatedRequest().get("/api/tasks").query({
       page: 1,
       limit: 2,
     });
 
     expect(page1Response.status).toBe(200);
 
-    const page2Response = await request(app).get("/api/tasks").query({
+    const page2Response = await authenticatedRequest().get("/api/tasks").query({
       page: 2,
       limit: 2,
     });
@@ -555,21 +619,21 @@ describe("Task API", () => {
     ).toBe(false);
 
     for (const id of taskIds) {
-      await request(app).delete(`/api/tasks/${id}`);
+      await authenticatedRequest().delete(`/api/tasks/${id}`);
     }
   });
   it("should paginate filtered tasks", async () => {
     const taskIds: number[] = [];
 
     for (let i = 1; i <= 5; i++) {
-      const response = await request(app)
+      const response = await authenticatedRequest()
         .post("/api/tasks")
         .send({
           title: `[TEST] Filter pagination ${i}`,
           description: "[TEST] Filter pagination",
           status: "TODO",
           priority: "LOW",
-          projectId: 1,
+          projectId: testProjectId,
         });
 
       expect(response.status).toBe(201);
@@ -577,7 +641,7 @@ describe("Task API", () => {
       taskIds.push(response.body.id);
     }
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       status: "TODO",
       page: 1,
       limit: 2,
@@ -599,11 +663,11 @@ describe("Task API", () => {
     expect(response.body.pagination.totalPages).toEqual(expect.any(Number));
 
     for (const id of taskIds) {
-      await request(app).delete(`/api/tasks/${id}`);
+      await authenticatedRequest().delete(`/api/tasks/${id}`);
     }
   });
   it("should reject page 0", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       page: 0,
       limit: 2,
     });
@@ -611,7 +675,7 @@ describe("Task API", () => {
     expect(response.status).toBe(400);
   });
   it("should reject limit 0", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       page: 1,
       limit: 0,
     });
@@ -619,7 +683,7 @@ describe("Task API", () => {
     expect(response.status).toBe(400);
   });
   it("should reject a negative page", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       page: -1,
       limit: 2,
     });
@@ -627,7 +691,7 @@ describe("Task API", () => {
     expect(response.status).toBe(400);
   });
   it("should reject a negative limit", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       page: 1,
       limit: -5,
     });
@@ -640,12 +704,12 @@ describe("Task API", () => {
     const titles = ["[TEST] Charlie", "[TEST] Alpha", "[TEST] Bravo"];
 
     for (const title of titles) {
-      const response = await request(app).post("/api/tasks").send({
+      const response = await authenticatedRequest().post("/api/tasks").send({
         title,
         description: "[TEST] Sorting",
         status: "TODO",
         priority: "LOW",
-        projectId: 1,
+        projectId: testProjectId,
       });
 
       expect(response.status).toBe(201);
@@ -653,7 +717,7 @@ describe("Task API", () => {
       taskIds.push(response.body.id);
     }
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       sortBy: "title",
       sortOrder: "asc",
     });
@@ -673,7 +737,7 @@ describe("Task API", () => {
     ]);
 
     for (const id of taskIds) {
-      await request(app).delete(`/api/tasks/${id}`);
+      await authenticatedRequest().delete(`/api/tasks/${id}`);
     }
   });
   it("should sort tasks by title in descending order", async () => {
@@ -682,12 +746,12 @@ describe("Task API", () => {
     const titles = ["[TEST] Charlie", "[TEST] Alpha", "[TEST] Bravo"];
 
     for (const title of titles) {
-      const response = await request(app).post("/api/tasks").send({
+      const response = await authenticatedRequest().post("/api/tasks").send({
         title,
         description: "[TEST] Sorting",
         status: "TODO",
         priority: "LOW",
-        projectId: 1,
+        projectId: testProjectId,
       });
 
       expect(response.status).toBe(201);
@@ -695,7 +759,7 @@ describe("Task API", () => {
       taskIds.push(response.body.id);
     }
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       sortBy: "title",
       sortOrder: "desc",
       limit: 100,
@@ -716,7 +780,7 @@ describe("Task API", () => {
     ]);
 
     for (const id of taskIds) {
-      await request(app).delete(`/api/tasks/${id}`);
+      await authenticatedRequest().delete(`/api/tasks/${id}`);
     }
   });
   it("should sort tasks by priority in ascending order", async () => {
@@ -725,14 +789,14 @@ describe("Task API", () => {
     const priorities = ["HIGH", "LOW", "URGENT", "MEDIUM"];
 
     for (let i = 0; i < priorities.length; i++) {
-      const response = await request(app)
+      const response = await authenticatedRequest()
         .post("/api/tasks")
         .send({
           title: `[TEST] Priority sorting ${i + 1}`,
           description: "[TEST] Priority sorting",
           status: "TODO",
           priority: priorities[i],
-          projectId: 1,
+          projectId: testProjectId,
         });
 
       expect(response.status).toBe(201);
@@ -740,7 +804,7 @@ describe("Task API", () => {
       taskIds.push(response.body.id);
     }
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       sortBy: "priority",
       sortOrder: "asc",
       limit: 100,
@@ -759,7 +823,7 @@ describe("Task API", () => {
     ).toEqual(["LOW", "MEDIUM", "HIGH", "URGENT"]);
 
     for (const id of taskIds) {
-      await request(app).delete(`/api/tasks/${id}`);
+      await authenticatedRequest().delete(`/api/tasks/${id}`);
     }
   });
   it("should sort tasks by priority in descending order", async () => {
@@ -768,14 +832,14 @@ describe("Task API", () => {
     const priorities = ["HIGH", "LOW", "URGENT", "MEDIUM"];
 
     for (let i = 0; i < priorities.length; i++) {
-      const response = await request(app)
+      const response = await authenticatedRequest()
         .post("/api/tasks")
         .send({
           title: `[TEST] Priority descending ${i + 1}`,
           description: "[TEST] Priority sorting",
           status: "TODO",
           priority: priorities[i],
-          projectId: 1,
+          projectId: testProjectId,
         });
 
       expect(response.status).toBe(201);
@@ -783,7 +847,7 @@ describe("Task API", () => {
       taskIds.push(response.body.id);
     }
 
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       sortBy: "priority",
       sortOrder: "desc",
       limit: 100,
@@ -802,43 +866,43 @@ describe("Task API", () => {
     ).toEqual(["URGENT", "HIGH", "MEDIUM", "LOW"]);
 
     for (const id of taskIds) {
-      await request(app).delete(`/api/tasks/${id}`);
+      await authenticatedRequest().delete(`/api/tasks/${id}`);
     }
   });
   it("should reject a task without a title", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       description: "[TEST] Missing title",
       status: "TODO",
       priority: "LOW",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(400);
   });
   it("should reject a task with an empty title", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "",
       description: "[TEST] Empty title",
       status: "TODO",
       priority: "LOW",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(400);
   });
   it("should reject a task with a whitespace-only title", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "   ",
       description: "[TEST] Whitespace title",
       status: "TODO",
       priority: "LOW",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(400);
   });
   it("should reject an invalid projectId", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Invalid project id",
       description: "[TEST] Invalid project id",
       status: "TODO",
@@ -849,19 +913,21 @@ describe("Task API", () => {
     expect(response.status).toBe(400);
   });
   it("should reject updating a task with a non-existent project", async () => {
-    const createResponse = await request(app).post("/api/tasks").send({
-      title: "[TEST] Invalid update project",
-      description: "[TEST] Update project",
-      status: "TODO",
-      priority: "LOW",
-      projectId: 1,
-    });
+    const createResponse = await authenticatedRequest()
+      .post("/api/tasks")
+      .send({
+        title: "[TEST] Invalid update project",
+        description: "[TEST] Update project",
+        status: "TODO",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
 
     expect(createResponse.status).toBe(201);
 
     const taskId = createResponse.body.id;
 
-    const updateResponse = await request(app)
+    const updateResponse = await authenticatedRequest()
       .patch(`/api/tasks/${taskId}`)
       .send({
         projectId: 999999999,
@@ -869,16 +935,16 @@ describe("Task API", () => {
 
     expect(updateResponse.status).toBe(404);
 
-    await request(app).delete(`/api/tasks/${taskId}`);
+    await authenticatedRequest().delete(`/api/tasks/${taskId}`);
   });
   it("should create a task with a due date", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Due date task",
       description: "[TEST] Due date",
       status: "TODO",
       priority: "LOW",
       dueDate: "2026-12-31",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(201);
@@ -886,22 +952,22 @@ describe("Task API", () => {
 
     const taskId = response.body.id;
 
-    await request(app).delete(`/api/tasks/${taskId}`);
+    await authenticatedRequest().delete(`/api/tasks/${taskId}`);
   });
   it("should reject an invalid due date", async () => {
-    const response = await request(app).post("/api/tasks").send({
+    const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Invalid due date",
       description: "[TEST] Invalid due date",
       status: "TODO",
       priority: "LOW",
       dueDate: "not-a-date",
-      projectId: 1,
+      projectId: testProjectId,
     });
 
     expect(response.status).toBe(400);
   });
   it("should reject an invalid sort field", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       sortBy: "invalidField",
       sortOrder: "asc",
     });
@@ -909,11 +975,284 @@ describe("Task API", () => {
     expect(response.status).toBe(400);
   });
   it("should reject an invalid sort order", async () => {
-    const response = await request(app).get("/api/tasks").query({
+    const response = await authenticatedRequest().get("/api/tasks").query({
       sortBy: "title",
       sortOrder: "invalid",
     });
 
     expect(response.status).toBe(400);
+  });
+  it("should prevent a user from reading another user's task", async () => {
+    const userA = authenticatedRequestWithSession(sessionA);
+    const userB = authenticatedRequestWithSession(sessionB);
+
+    const projectResponse = await userB.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectResponse.status).toBe(201);
+
+    const projectId = projectResponse.body.id;
+
+    const taskResponse = await userB.post("/api/tasks").send({
+      title: "[TEST] User B task",
+      description: "[TEST] User B task",
+      status: "TODO",
+      priority: "LOW",
+      projectId,
+    });
+
+    expect(taskResponse.status).toBe(201);
+
+    const taskId = taskResponse.body.id;
+
+    const response = await userA.get(`/api/tasks/${taskId}`);
+
+    expect(response.status).toBe(404);
+  });
+  it("should prevent a user from updating another user's task", async () => {
+    const userA = authenticatedRequestWithSession(sessionA);
+    const userB = authenticatedRequestWithSession(sessionB);
+
+    const projectResponse = await userB.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectResponse.status).toBe(201);
+
+    const taskResponse = await userB.post("/api/tasks").send({
+      title: "[TEST] Original title",
+      description: "[TEST] Original description",
+      status: "TODO",
+      priority: "LOW",
+      projectId: projectResponse.body.id,
+    });
+
+    expect(taskResponse.status).toBe(201);
+
+    const taskId = taskResponse.body.id;
+
+    const updateResponse = await userA.patch(`/api/tasks/${taskId}`).send({
+      title: "[TEST] Unauthorized update",
+    });
+
+    expect(updateResponse.status).toBe(404);
+
+    const ownerResponse = await userB.get(`/api/tasks/${taskId}`);
+
+    expect(ownerResponse.status).toBe(200);
+    expect(ownerResponse.body.title).toBe("[TEST] Original title");
+  });
+  it("should prevent a user from deleting another user's task", async () => {
+    const userA = authenticatedRequestWithSession(sessionA);
+    const userB = authenticatedRequestWithSession(sessionB);
+
+    const projectResponse = await userB.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectResponse.status).toBe(201);
+
+    const taskResponse = await userB.post("/api/tasks").send({
+      title: "[TEST] User B task",
+      description: "[TEST] User B task",
+      status: "TODO",
+      priority: "LOW",
+      projectId: projectResponse.body.id,
+    });
+
+    expect(taskResponse.status).toBe(201);
+
+    const taskId = taskResponse.body.id;
+
+    const deleteResponse = await userA.delete(`/api/tasks/${taskId}`);
+
+    expect(deleteResponse.status).toBe(404);
+
+    const ownerResponse = await userB.get(`/api/tasks/${taskId}`);
+
+    expect(ownerResponse.status).toBe(200);
+    expect(ownerResponse.body.id).toBe(taskId);
+  });
+  it("should prevent a user from moving a task into another user's project", async () => {
+    const userA = authenticatedRequestWithSession(sessionA);
+    const userB = authenticatedRequestWithSession(sessionB);
+
+    const projectAResponse = await userA.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectAResponse.status).toBe(201);
+
+    const projectBResponse = await userB.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectBResponse.status).toBe(201);
+
+    const taskResponse = await userA.post("/api/tasks").send({
+      title: "[TEST] User A task",
+      description: "[TEST] User A task",
+      status: "TODO",
+      priority: "LOW",
+      projectId: projectAResponse.body.id,
+    });
+
+    expect(taskResponse.status).toBe(201);
+
+    const taskId = taskResponse.body.id;
+
+    const updateResponse = await userA.patch(`/api/tasks/${taskId}`).send({
+      projectId: projectBResponse.body.id,
+    });
+
+    expect(updateResponse.status).toBe(404);
+
+    const ownerResponse = await userA.get(`/api/tasks/${taskId}`);
+
+    expect(ownerResponse.status).toBe(200);
+    expect(ownerResponse.body.projectId).toBe(projectAResponse.body.id);
+  });
+  it("should prevent a user from reading another user's project", async () => {
+    const userA = authenticatedRequestWithSession(sessionA);
+    const userB = authenticatedRequestWithSession(sessionB);
+
+    const projectResponse = await userB.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectResponse.status).toBe(201);
+
+    const projectId = projectResponse.body.id;
+
+    const response = await userA.get(`/api/projects/${projectId}`);
+
+    expect(response.status).toBe(404);
+  });
+  it("should prevent a user from updating another user's project", async () => {
+    const userA = authenticatedRequestWithSession(sessionA);
+    const userB = authenticatedRequestWithSession(sessionB);
+
+    const projectResponse = await userB.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectResponse.status).toBe(201);
+
+    const projectId = projectResponse.body.id;
+
+    const updateResponse = await userA
+      .patch(`/api/projects/${projectId}`)
+      .send({
+        name: "[TEST] Unauthorized update",
+      });
+
+    expect(updateResponse.status).toBe(404);
+
+    const ownerResponse = await userB.get(`/api/projects/${projectId}`);
+
+    expect(ownerResponse.status).toBe(200);
+    expect(ownerResponse.body.name).toBe("[TEST] User B project");
+  });
+  it("should prevent a user from deleting another user's project", async () => {
+    const userA = authenticatedRequestWithSession(sessionA);
+    const userB = authenticatedRequestWithSession(sessionB);
+
+    const projectResponse = await userB.post("/api/projects").send({
+      name: "[TEST] User B project",
+      description: "[TEST] User B project",
+      status: "Active",
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+
+    expect(projectResponse.status).toBe(201);
+
+    const projectId = projectResponse.body.id;
+
+    const deleteResponse = await userA.delete(`/api/projects/${projectId}`);
+
+    expect(deleteResponse.status).toBe(404);
+
+    const ownerResponse = await userB.get(`/api/projects/${projectId}`);
+
+    expect(ownerResponse.status).toBe(200);
+    expect(ownerResponse.body.id).toBe(projectId);
+  });
+  it("should return tasks for a project owned by the user", async () => {
+    const project = await createTestProject();
+
+    const response = await authenticatedRequest().get(
+      `/api/projects/${project.id}/tasks`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+  });
+  it("should return 404 when the project does not exist", async () => {
+    const response = await authenticatedRequest().get(
+      "/api/projects/999999/tasks",
+    );
+
+    expect(response.status).toBe(404);
+  });
+  it("should return 404 when accessing another user's project tasks", async () => {
+    const anotherUser = await createAuthenticatedAgent();
+
+    try {
+      const anotherUserRequest = authenticatedRequestWithSession(
+        anotherUser.session.id,
+      );
+
+      const projectResponse = await anotherUserRequest
+        .post("/api/projects")
+        .send({
+          name: "Another User's Project",
+          description: "Test project",
+          status: "Active",
+          startDate: "2026-01-01",
+          dueDate: "2026-12-31",
+        });
+
+      expect(projectResponse.status).toBe(201);
+
+      const projectId = projectResponse.body.id;
+
+      const response = await authenticatedRequest().get(
+        `/api/projects/${projectId}/tasks`,
+      );
+
+      expect(response.status).toBe(404);
+    } finally {
+      await anotherUser.cleanup();
+    }
   });
 });

@@ -13,6 +13,7 @@ import {
   taskQuerySchema,
   updateTaskSchema,
 } from "../schema/task.schema";
+import { ApiError } from "../errors/api.error";
 
 export const getTasksController = async (
   req: Request,
@@ -21,7 +22,7 @@ export const getTasksController = async (
 ) => {
   try {
     const query = taskQuerySchema.parse(req.query);
-    const tasks = await getTasks(query);
+    const tasks = await getTasks(query, req.user!.id);
     return res.status(200).json(tasks);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -52,7 +53,7 @@ export const getTaskByIdController = async (
         message: "Invalid task id",
       });
     }
-    const task = await getTaskById(id);
+    const task = await getTaskById(id, req.user!.id);
 
     if (!task) {
       return res.status(404).json({
@@ -80,7 +81,7 @@ export const createTaskController = async (
       });
     }
 
-    const task = await createTask(parsed.data);
+    const task = await createTask(parsed.data, req.user!.id);
 
     return res.status(201).json(task);
   } catch (error) {
@@ -108,15 +109,18 @@ export const updateTaskController = async (
         errors: parsed.error.flatten().fieldErrors,
       });
     }
-    const existingTask = await getTaskById(id);
+    const existingTask = await getTaskById(id, req.user!.id);
     if (!existingTask) {
       return res.status(404).json({
         message: "Task not found",
       });
     }
 
-    const task = await updateTask(id, parsed.data);
+    const task = await updateTask(id, parsed.data, req.user!.id);
 
+    if (!task) {
+      throw new ApiError(404, "Task not found");
+    }
     return res.json(task);
   } catch (error) {
     return next(error);
@@ -135,13 +139,13 @@ export const deleteTaskController = async (
         message: "Invalid task id",
       });
     }
-    const task = await getTaskById(id);
+    const task = await getTaskById(id, req.user!.id);
     if (!task) {
       return res.status(404).json({
         message: "Task not found",
       });
     }
-    await deleteTask(id);
+    await deleteTask(id, req.user!.id);
 
     return res.status(204).send();
   } catch (error) {
@@ -158,12 +162,14 @@ export const getTasksByProjectController = async (
     const projectId = Number(req.params.projectId);
 
     if (!Number.isInteger(projectId)) {
-      return res.status(400).json({
-        message: "Invalid project ID",
-      });
+      throw new ApiError(400, "Invalid project ID");
     }
 
-    const tasks = await getTasksByProjectId(projectId);
+    const tasks = await getTasksByProjectId(projectId, req.user!.id);
+
+    if (tasks === null) {
+      throw new ApiError(404, "Project not found");
+    }
 
     res.json(tasks);
   } catch (error) {

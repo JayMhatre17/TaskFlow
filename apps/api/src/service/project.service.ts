@@ -8,14 +8,17 @@ import {
 import { or } from "@prisma/orm-postgres/orm-client";
 import { applyProjectSorting } from "./projects/projectQuery.utils";
 
-export const getProjects = async (query: ProjectQueryInput) => {
-  let projectQuery = db.orm.public.Project;
+export const getProjects = async (query: ProjectQueryInput, userId: number) => {
+  let projectQuery = db.orm.public.Project.where({
+    ownerId: userId,
+  });
 
   if (query.status) {
     projectQuery = projectQuery.where({
       status: query.status,
     });
   }
+
   if (query.search) {
     projectQuery = projectQuery.where((p) =>
       or(
@@ -24,20 +27,26 @@ export const getProjects = async (query: ProjectQueryInput) => {
       ),
     );
   }
+
   const offset = (query.page - 1) * query.limit;
+
   const total = await projectQuery.aggregate((agg) => ({
     total: agg.count(),
   }));
+
   const orderedProjectQuery = applyProjectSorting(
     projectQuery,
     query.sortBy,
     query.sortOrder,
   );
+
   const projects = await orderedProjectQuery
     .offset(offset)
     .limit(query.limit)
     .all();
+
   const totalPages = Math.ceil(total.total / query.limit);
+
   return {
     data: projects,
     pagination: {
@@ -48,24 +57,32 @@ export const getProjects = async (query: ProjectQueryInput) => {
     },
   };
 };
-
-export const getProjectById = async (id: number) => {
+export const getProjectById = async (id: number, userId: number) => {
   return db.orm.public.Project.first({
     id,
+    ownerId: userId,
   });
 };
 
-export const createProject = async (data: CreateProjectInput) => {
+export const createProject = async (
+  data: CreateProjectInput,
+  ownerId: number,
+) => {
   return db.orm.public.Project.create({
     name: data.name,
     description: data.description,
     status: data.status,
     startDate: Temporal.Instant.from(`${data.startDate}T00:00:00Z`),
     dueDate: Temporal.Instant.from(`${data.dueDate}T00:00:00Z`),
+    ownerId,
   });
 };
 
-export const updateProject = async (id: number, data: UpdateProjectInput) => {
+export const updateProject = async (
+  id: number,
+  data: UpdateProjectInput,
+  userId: number,
+) => {
   const updateData = {
     ...(data.name !== undefined && {
       name: data.name,
@@ -88,15 +105,19 @@ export const updateProject = async (id: number, data: UpdateProjectInput) => {
     }),
   };
 
-  return db.orm.public.Project.where({ id }).update(updateData);
+  return db.orm.public.Project.where({
+    id,
+    ownerId: userId,
+  }).update(updateData);
+};
+export const deleteProject = async (id: number, userId: number) => {
+  return db.orm.public.Project.where({ id, ownerId: userId }).delete();
 };
 
-export const deleteProject = async (id: number) => {
-  return db.orm.public.Project.where({ id }).delete();
-};
-
-export const getProjectOptions = async () => {
-  const projects = await db.orm.public.Project.all();
+export const getProjectOptions = async (userId: number) => {
+  const projects = await db.orm.public.Project.where({
+    ownerId: userId,
+  }).all();
 
   return projects.map((project) => ({
     id: project.id,

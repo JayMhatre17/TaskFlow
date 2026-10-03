@@ -38,7 +38,7 @@ describe("session service", () => {
 
     expect(session.id).toBeTruthy();
     expect(session.userId).toBe(user.id);
-    expect(session.expiresAt).toBeInstanceOf(Date);
+    expect(session.expiresAt.epochMilliseconds).toEqual(expect.any(Number));
   });
 
   it("should create a session with an expiry approximately 7 days from now", async () => {
@@ -58,11 +58,11 @@ describe("session service", () => {
 
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
 
-    expect(session.expiresAt.getTime()).toBeGreaterThanOrEqual(
-      before + sevenDays,
-    );
+    const expiresAt = session.expiresAt.epochMilliseconds;
 
-    expect(session.expiresAt.getTime()).toBeLessThanOrEqual(after + sevenDays);
+    expect(expiresAt).toBeGreaterThanOrEqual(before + sevenDays);
+
+    expect(expiresAt).toBeLessThanOrEqual(after + sevenDays);
   });
 
   it("should generate a unique session id", async () => {

@@ -27,7 +27,7 @@ export const getProjectsController = async (
       });
     }
 
-    const projects = await getProjects(result.data);
+    const projects = await getProjects(result.data, req.user!.id);
 
     return res.json(projects);
   } catch (error) {
@@ -50,7 +50,7 @@ export const createProjectController = async (
       });
     }
 
-    const project = await createProject(result.data);
+    const project = await createProject(result.data, req.user!.id);
 
     return res.status(201).json(project);
   } catch (error) {
@@ -72,7 +72,7 @@ export const getProjetByIdController = async (
       });
     }
 
-    const project = await getProjectById(id);
+    const project = await getProjectById(id, req.user!.id);
 
     if (!project) {
       return res.status(404).json({
@@ -107,14 +107,14 @@ export const updateProjectController = async (
         errors: result.error.flatten().fieldErrors,
       });
     }
-    const existingProject = await getProjectById(id);
+    const existingProject = await getProjectById(id, req.user!.id);
 
     if (!existingProject) {
       return res.status(404).json({
         message: "Project not found",
       });
     }
-    const project = await updateProject(id, result.data);
+    const project = await updateProject(id, result.data, req.user!.id);
 
     return res.json(project);
   } catch (error) {
@@ -134,13 +134,13 @@ export const deleteProjectController = async (
         message: "Invalid project ID",
       });
     }
-    const project = await getProjectById(id);
+    const project = await getProjectById(id, req.user!.id);
     if (!project) {
       return res.status(404).json({
         message: "Project not found",
       });
     }
-    await deleteProject(id);
+    await deleteProject(id, req.user!.id);
 
     return res.status(204).send();
   } catch (error) {
@@ -149,12 +149,12 @@ export const deleteProjectController = async (
 };
 
 export const getProjectOptionsController = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const projects = await getProjectOptions();
+    const projects = await getProjectOptions(req.user!.id);
 
     return res.json(projects);
   } catch (error) {

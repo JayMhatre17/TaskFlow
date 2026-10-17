@@ -9,23 +9,45 @@ import {
 } from "../controllers/projects.controller";
 import { getTasksByProjectController } from "../controllers/task.controller";
 import { requireAuth } from "../middlewares/require-auth.middleware";
+import {
+  addProjectMemberController,
+  getProjectMembersController,
+  removeProjectMemberController,
+} from "../controllers/projectMember.controller";
+import {
+  cancelProjectInvitationController,
+  createProjectInvitationController,
+  getMyProjectInvitationsController,
+  projectInvitationActionController,
+} from "../controllers/projectInvitation.controller";
 
 const router = Router();
 
 router.use(requireAuth);
 
 router.get("/", getProjectsController);
-
 router.post("/", createProjectController);
 
 router.get("/options", getProjectOptionsController);
+router.get("/invitations", getMyProjectInvitationsController);
+
+router.post("/invitations/:token/action", projectInvitationActionController);
 
 router.get("/:id", getProjetByIdController);
-
 router.patch("/:id", updateProjectController);
-
 router.delete("/:id", deleteProjectController);
 
 router.get("/:projectId/tasks", getTasksByProjectController);
+
+router.get("/:projectId/members", getProjectMembersController);
+router.post("/:projectId/members", addProjectMemberController);
+router.delete("/:projectId/members/:userId", removeProjectMemberController);
+
+router.post("/:projectId/invitations", createProjectInvitationController);
+
+router.post(
+  "/:projectId/invitations/:invitationId/cancel",
+  cancelProjectInvitationController,
+);
 
 export default router;

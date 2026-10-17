@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'27a167ae848be6defdd89d882b4ae7a8dedccbf839f019a465bf5352035a3f49'>;
+  StorageHashBase<'0211fdb89d8c1ec1b516830735cd77f94b722cb4b67e7c9a3a03df521c2c5671'>;
 export type ExecutionHash =
   ExecutionHashBase<'4f5b169da2781186fe20ac5d273958951da2da273e856be19d42cd02c7c540d9'>;
 export type ProfileHash =
@@ -273,7 +273,8 @@ export type FieldOutputTypes = {
         | 'PROJECT_MEMBER_REMOVED'
         | 'PROJECT_OWNERSHIP_TRANSFERRED'
         | 'ACCOUNT_DEACTIVATED'
-        | 'ACCOUNT_DELETION';
+        | 'ACCOUNT_DELETION'
+        | 'PROJECT_INVITATION_ACCEPTED';
       readonly title: CodecTypes['pg/text@1']['output'];
       readonly message: CodecTypes['pg/text@1']['output'];
       readonly taskId: CodecTypes['pg/int4@1']['output'] | null;
@@ -373,7 +374,10 @@ export type FieldOutputTypes = {
         | 'DELETED'
         | 'RESTORED'
         | 'CLOSED'
-        | 'REOPENED';
+        | 'REOPENED'
+        | 'COMMENT_ADDED'
+        | 'COMMENT_UPDATED'
+        | 'COMMENT_DELETED';
       readonly field: CodecTypes['pg/text@1']['output'] | null;
       readonly oldValue: CodecTypes['pg/text@1']['output'] | null;
       readonly newValue: CodecTypes['pg/text@1']['output'] | null;
@@ -449,7 +453,8 @@ export type FieldInputTypes = {
         | 'PROJECT_MEMBER_REMOVED'
         | 'PROJECT_OWNERSHIP_TRANSFERRED'
         | 'ACCOUNT_DEACTIVATED'
-        | 'ACCOUNT_DELETION';
+        | 'ACCOUNT_DELETION'
+        | 'PROJECT_INVITATION_ACCEPTED';
       readonly title: CodecTypes['pg/text@1']['input'];
       readonly message: CodecTypes['pg/text@1']['input'];
       readonly taskId: CodecTypes['pg/int4@1']['input'] | null;
@@ -549,7 +554,10 @@ export type FieldInputTypes = {
         | 'DELETED'
         | 'RESTORED'
         | 'CLOSED'
-        | 'REOPENED';
+        | 'REOPENED'
+        | 'COMMENT_ADDED'
+        | 'COMMENT_UPDATED'
+        | 'COMMENT_DELETED';
       readonly field: CodecTypes['pg/text@1']['input'] | null;
       readonly oldValue: CodecTypes['pg/text@1']['input'] | null;
       readonly newValue: CodecTypes['pg/text@1']['input'] | null;
@@ -631,7 +639,8 @@ export type StorageColumnTypes = {
         | 'PROJECT_MEMBER_REMOVED'
         | 'PROJECT_OWNERSHIP_TRANSFERRED'
         | 'ACCOUNT_DEACTIVATED'
-        | 'ACCOUNT_DELETION';
+        | 'ACCOUNT_DELETION'
+        | 'PROJECT_INVITATION_ACCEPTED';
       readonly userId: CodecTypes['pg/int4@1']['output'];
     };
     readonly project: {
@@ -722,7 +731,10 @@ export type StorageColumnTypes = {
         | 'DELETED'
         | 'RESTORED'
         | 'CLOSED'
-        | 'REOPENED';
+        | 'REOPENED'
+        | 'COMMENT_ADDED'
+        | 'COMMENT_UPDATED'
+        | 'COMMENT_DELETED';
       readonly actorId: CodecTypes['pg/int4@1']['output'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly description: CodecTypes['pg/text@1']['output'] | null;
@@ -807,7 +819,8 @@ export type StorageColumnInputTypes = {
         | 'PROJECT_MEMBER_REMOVED'
         | 'PROJECT_OWNERSHIP_TRANSFERRED'
         | 'ACCOUNT_DEACTIVATED'
-        | 'ACCOUNT_DELETION';
+        | 'ACCOUNT_DELETION'
+        | 'PROJECT_INVITATION_ACCEPTED';
       readonly userId: CodecTypes['pg/int4@1']['input'];
     };
     readonly project: {
@@ -898,7 +911,10 @@ export type StorageColumnInputTypes = {
         | 'DELETED'
         | 'RESTORED'
         | 'CLOSED'
-        | 'REOPENED';
+        | 'REOPENED'
+        | 'COMMENT_ADDED'
+        | 'COMMENT_UPDATED'
+        | 'COMMENT_DELETED';
       readonly actorId: CodecTypes['pg/int4@1']['input'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly description: CodecTypes['pg/text@1']['input'] | null;
@@ -1121,7 +1137,10 @@ export namespace Models {
       | 'DELETED'
       | 'RESTORED'
       | 'CLOSED'
-      | 'REOPENED';
+      | 'REOPENED'
+      | 'COMMENT_ADDED'
+      | 'COMMENT_UPDATED'
+      | 'COMMENT_DELETED';
     field: CodecTypes['pg/text@1']['output'] | null;
     oldValue: CodecTypes['pg/text@1']['output'] | null;
     newValue: CodecTypes['pg/text@1']['output'] | null;
@@ -1191,7 +1210,8 @@ export namespace Models {
       | 'PROJECT_MEMBER_REMOVED'
       | 'PROJECT_OWNERSHIP_TRANSFERRED'
       | 'ACCOUNT_DEACTIVATED'
-      | 'ACCOUNT_DELETION';
+      | 'ACCOUNT_DELETION'
+      | 'PROJECT_INVITATION_ACCEPTED';
     title: CodecTypes['pg/text@1']['output'];
     message: CodecTypes['pg/text@1']['output'];
     taskId: CodecTypes['pg/int4@1']['output'] | null;
@@ -2739,6 +2759,7 @@ type ContractBase = Omit<
                 'PROJECT_OWNERSHIP_TRANSFERRED',
                 'ACCOUNT_DEACTIVATED',
                 'ACCOUNT_DELETION',
+                'PROJECT_INVITATION_ACCEPTED',
               ];
             };
             readonly ProjectActivityAction: {
@@ -2771,6 +2792,9 @@ type ContractBase = Omit<
                 'RESTORED',
                 'CLOSED',
                 'REOPENED',
+                'COMMENT_ADDED',
+                'COMMENT_UPDATED',
+                'COMMENT_DELETED',
               ];
             };
             readonly TaskAssignmentAction: {
@@ -4312,6 +4336,9 @@ type ContractBase = Omit<
               { readonly name: 'RESTORED'; readonly value: 'RESTORED' },
               { readonly name: 'CLOSED'; readonly value: 'CLOSED' },
               { readonly name: 'REOPENED'; readonly value: 'REOPENED' },
+              { readonly name: 'COMMENT_ADDED'; readonly value: 'COMMENT_ADDED' },
+              { readonly name: 'COMMENT_UPDATED'; readonly value: 'COMMENT_UPDATED' },
+              { readonly name: 'COMMENT_DELETED'; readonly value: 'COMMENT_DELETED' },
             ];
           };
           readonly ProjectActivityAction: {
@@ -4353,6 +4380,10 @@ type ContractBase = Omit<
               },
               { readonly name: 'ACCOUNT_DEACTIVATED'; readonly value: 'ACCOUNT_DEACTIVATED' },
               { readonly name: 'ACCOUNT_DELETION'; readonly value: 'ACCOUNT_DELETION' },
+              {
+                readonly name: 'PROJECT_INVITATION_ACCEPTED';
+                readonly value: 'PROJECT_INVITATION_ACCEPTED';
+              },
             ];
           };
           readonly ProjectInvitationStatus: {

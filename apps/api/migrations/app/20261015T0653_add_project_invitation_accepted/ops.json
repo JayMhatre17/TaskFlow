@@ -1,0 +1,170 @@
+[
+  {
+    "id": "dropCheckConstraint.notification.notification_type_check_91734813",
+    "label": "Drop check constraint \"notification_type_check_91734813\" on \"notification\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "notification_type_check_91734813",
+        "table": "notification"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"notification_type_check_91734813\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "notification_type_check_91734813",
+          "public",
+          "\"public\".\"notification\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"notification_type_check_91734813\"",
+        "sql": "ALTER TABLE \"public\".\"notification\" DROP CONSTRAINT \"notification_type_check_91734813\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"notification_type_check_91734813\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "notification_type_check_91734813",
+          "public",
+          "\"public\".\"notification\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.taskActivity.taskActivity_action_check_e1902285",
+    "label": "Drop check constraint \"taskActivity_action_check_e1902285\" on \"taskActivity\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "taskActivity_action_check_e1902285",
+        "table": "taskActivity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"taskActivity_action_check_e1902285\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "taskActivity_action_check_e1902285",
+          "public",
+          "\"public\".\"taskActivity\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"taskActivity_action_check_e1902285\"",
+        "sql": "ALTER TABLE \"public\".\"taskActivity\" DROP CONSTRAINT \"taskActivity_action_check_e1902285\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"taskActivity_action_check_e1902285\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "taskActivity_action_check_e1902285",
+          "public",
+          "\"public\".\"taskActivity\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.notification.notification_type_check_90cbfce4",
+    "label": "Add check constraint \"notification_type_check_90cbfce4\" on \"notification\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "notification_type_check_90cbfce4",
+        "table": "notification"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"notification_type_check_90cbfce4\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "notification_type_check_90cbfce4",
+          "public",
+          "\"public\".\"notification\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"notification_type_check_90cbfce4\"",
+        "sql": "ALTER TABLE \"public\".\"notification\" ADD CONSTRAINT \"notification_type_check_90cbfce4\" CHECK (\"type\" IN ('TASK_ASSIGNED', 'TASK_REASSIGNED', 'TASK_UNASSIGNED', 'TASK_STATUS_CHANGED', 'TASK_COMMENTED', 'PROJECT_INVITATION', 'PROJECT_MEMBER_ADDED', 'PROJECT_MEMBER_REMOVED', 'PROJECT_OWNERSHIP_TRANSFERRED', 'ACCOUNT_DEACTIVATED', 'ACCOUNT_DELETION', 'PROJECT_INVITATION_ACCEPTED'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"notification_type_check_90cbfce4\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "notification_type_check_90cbfce4",
+          "public",
+          "\"public\".\"notification\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.taskActivity.taskActivity_action_check_35fab25a",
+    "label": "Add check constraint \"taskActivity_action_check_35fab25a\" on \"taskActivity\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "taskActivity_action_check_35fab25a",
+        "table": "taskActivity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"taskActivity_action_check_35fab25a\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "taskActivity_action_check_35fab25a",
+          "public",
+          "\"public\".\"taskActivity\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"taskActivity_action_check_35fab25a\"",
+        "sql": "ALTER TABLE \"public\".\"taskActivity\" ADD CONSTRAINT \"taskActivity_action_check_35fab25a\" CHECK (\"action\" IN ('CREATED', 'UPDATED', 'STATUS_CHANGED', 'PRIORITY_CHANGED', 'DUE_DATE_CHANGED', 'DELETED', 'RESTORED', 'CLOSED', 'REOPENED', 'COMMENT_ADDED', 'COMMENT_UPDATED', 'COMMENT_DELETED'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"taskActivity_action_check_35fab25a\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "taskActivity_action_check_35fab25a",
+          "public",
+          "\"public\".\"taskActivity\""
+        ]
+      }
+    ]
+  }
+]

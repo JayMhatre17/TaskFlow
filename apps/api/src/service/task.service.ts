@@ -1,6 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { db } from "../prisma/db";
 import {
+  AssignTaskInput,
   CreateTaskInput,
   TaskQueryInput,
   UpdateTaskInput,
@@ -14,6 +15,8 @@ import {
   TASK_STATUS,
 } from "../constants/task.constants";
 import { ApiError } from "../errors/api.error";
+import { getProjectAccess } from "./projectAccess.service";
+import { createNotificationWithClient } from "./notification.service";
 type Task = Awaited<ReturnType<typeof db.orm.public.Task.first>>;
 
 type TaskRecord = NonNullable<Task>;
@@ -25,12 +28,26 @@ const sortColumn = {
   createdAt: "createdAt",
   updatedAt: "updatedAt",
 } as const;
+
 export const getTasks = async (query: TaskQueryInput, userId: number) => {
   const offset = (query.page - 1) * query.limit;
-  const userProjects = await db.orm.public.Project.where({
+  const ownedProjects = await db.orm.public.Project.where({
     ownerId: userId,
   }).all();
-  if (userProjects.length === 0) {
+
+  const membership = await db.orm.public.ProjectMember.where({
+    userId,
+    removedAt: null,
+  }).all();
+
+  const projectIds = [
+    ...ownedProjects.map((project) => project.id),
+    ...membership.map((membership) => membership.projectId),
+  ];
+
+  const uniqueProjectIds = [...new Set(projectIds)];
+
+  if (uniqueProjectIds.length === 0) {
     return {
       data: [],
       pagination: {
@@ -41,13 +58,16 @@ export const getTasks = async (query: TaskQueryInput, userId: number) => {
       },
     };
   }
-  const projectIds = userProjects.map((project) => project.id);
 
   let taskQuery = db.orm.public.Task.where((task) =>
-    or(...projectIds.map((projectId) => task.projectId.eq(projectId))),
+    or(...uniqueProjectIds.map((projectId) => task.projectId.eq(projectId))),
   );
 
-  const projects = userProjects;
+  taskQuery = taskQuery.where({ deletedAt: null });
+
+  const projects = await db.orm.public.Project.where((project) =>
+    or(...uniqueProjectIds.map((projectId) => project.id.eq(projectId))),
+  ).all();
 
   if (query.status) {
     taskQuery = taskQuery.where({
@@ -110,43 +130,48 @@ export const getTasks = async (query: TaskQueryInput, userId: number) => {
 export const getTaskById = async (id: number, userId: number) => {
   const tasks = await db.orm.public.Task.where({
     id,
+    deletedAt: null,
   }).all();
   const task = tasks[0];
-  if (!task) {
+  if (!task || task.deletedAt !== null) {
     return null;
   }
-  const project = await getOwnedProject(task.projectId, userId);
+  const access = await getProjectAccess(task.projectId, userId);
 
-  if (!project) {
+  if (!access) {
     return null;
   }
   return attachProject(task);
 };
 
 export const createTask = async (data: CreateTaskInput, userId: number) => {
-  const project = await db.orm.public.Project.first({
-    id: data.projectId,
-    ownerId: userId,
-  });
+  const access = await getProjectAccess(data.projectId, userId);
 
-  if (!project) {
+  if (!access) {
     throw new ApiError(404, "Project not found");
   }
 
-  const task = await db.orm.public.Task.create({
-    title: data.title,
-    description: data.description,
-    status: TASK_STATUS[data.status],
-    priority: TASK_PRIORITY[data.priority],
-    dueDate:
-      data.dueDate !== undefined
-        ? Temporal.Instant.from(`${data.dueDate}T00:00:00Z`)
-        : undefined,
-    projectId: data.projectId,
-    creatorId: userId,
+  return db.transaction(async (tx) => {
+    const task = await tx.orm.public.Task.create({
+      title: data.title,
+      description: data.description,
+      status: TASK_STATUS[data.status],
+      priority: TASK_PRIORITY[data.priority],
+      dueDate:
+        data.dueDate !== undefined
+          ? Temporal.Instant.from(`${data.dueDate}T00:00:00Z`)
+          : undefined,
+      projectId: data.projectId,
+      creatorId: userId,
+    });
+    await tx.orm.public.TaskActivity.create({
+      taskId: task.id,
+      actorId: userId,
+      action: "CREATED",
+      description: "Created task",
+    });
+    return mapTaskFromDb(task);
   });
-
-  return mapTaskFromDb(task);
 };
 
 export const updateTask = async (
@@ -154,23 +179,23 @@ export const updateTask = async (
   data: UpdateTaskInput,
   userId: number,
 ) => {
-  const tasks = await db.orm.public.Task.where({ id }).all();
-  const existingTask = tasks[0];
+  const existingTask = await db.orm.public.Task.where({ id }).first();
 
-  if (!existingTask) {
+  // Reject missing or soft-deleted tasks.
+  if (!existingTask || existingTask.deletedAt !== null) {
     return null;
   }
 
-  const ownedProject = await getOwnedProject(existingTask.projectId, userId);
+  const access = await getProjectAccess(existingTask.projectId, userId);
 
-  if (!ownedProject) {
+  if (!access) {
     return null;
   }
 
   if (data.projectId !== undefined) {
-    const targetProject = await getOwnedProject(data.projectId, userId);
+    const targetAccess = await getProjectAccess(data.projectId, userId);
 
-    if (!targetProject) {
+    if (!targetAccess) {
       return null;
     }
   }
@@ -194,23 +219,160 @@ export const updateTask = async (
     }),
   };
 
-  const updatedTask = await db.orm.public.Task.where({
-    id,
-    projectId: ownedProject.id,
-  }).update(updateData);
+  const toActivityValue = (value: unknown): string | null =>
+    value == null ? null : String(value);
 
-  if (!updatedTask) {
-    return null;
+  const activityEntries: {
+    action:
+      "UPDATED" | "STATUS_CHANGED" | "PRIORITY_CHANGED" | "DUE_DATE_CHANGED";
+    field: string;
+    oldValue: string | null;
+    newValue: string | null;
+  }[] = [];
+
+  if (data.title !== undefined && existingTask.title !== data.title) {
+    activityEntries.push({
+      action: "UPDATED",
+      field: "title",
+      oldValue: existingTask.title,
+      newValue: data.title,
+    });
   }
 
-  return mapTaskFromDb(updatedTask);
+  if (
+    data.description !== undefined &&
+    existingTask.description !== data.description
+  ) {
+    activityEntries.push({
+      action: "UPDATED",
+      field: "description",
+      oldValue: existingTask.description,
+      newValue: data.description,
+    });
+  }
+
+  if (
+    data.status !== undefined &&
+    existingTask.status !== TASK_STATUS[data.status]
+  ) {
+    activityEntries.push({
+      action: "STATUS_CHANGED",
+      field: "status",
+      oldValue: getTaskStatusLabel(existingTask.status),
+      newValue: getTaskStatusLabel(TASK_STATUS[data.status]),
+    });
+  }
+
+  if (
+    data.priority !== undefined &&
+    existingTask.priority !== TASK_PRIORITY[data.priority]
+  ) {
+    activityEntries.push({
+      action: "PRIORITY_CHANGED",
+      field: "priority",
+      oldValue: getTaskPriorityLabel(existingTask.priority),
+      newValue: getTaskPriorityLabel(TASK_PRIORITY[data.priority]),
+    });
+  }
+
+  if (data.dueDate !== undefined) {
+    const oldDueDate =
+      existingTask.dueDate == null
+        ? null
+        : Temporal.Instant.from(String(existingTask.dueDate))
+            .toString()
+            .slice(0, 10);
+
+    const newDueDate = data.dueDate;
+
+    if (oldDueDate !== newDueDate) {
+      activityEntries.push({
+        action: "DUE_DATE_CHANGED",
+        field: "dueDate",
+        oldValue: oldDueDate,
+        newValue: newDueDate,
+      });
+    }
+  }
+
+  if (
+    data.projectId !== undefined &&
+    existingTask.projectId !== data.projectId
+  ) {
+    activityEntries.push({
+      action: "UPDATED",
+      field: "projectId",
+      oldValue: String(existingTask.projectId),
+      newValue: String(data.projectId),
+    });
+  }
+
+  return db.transaction(async (tx) => {
+    // Recheck the task's active state as part of the update.
+    const updatedTask = await tx.orm.public.Task.where({
+      id,
+      projectId: existingTask.projectId,
+      deletedAt: null,
+    }).update(updateData);
+
+    if (!updatedTask) {
+      return null;
+    }
+
+    for (const entry of activityEntries) {
+      await tx.orm.public.TaskActivity.create({
+        taskId: id,
+        actorId: userId,
+        action: entry.action,
+        field: entry.field,
+        oldValue: entry.oldValue,
+        newValue: entry.newValue,
+        description: `Changed ${entry.field}`,
+      });
+    }
+
+    const statusChange = activityEntries.find(
+      (entry) => entry.action === "STATUS_CHANGED",
+    );
+
+    if (statusChange) {
+      const projectId = data.projectId ?? existingTask.projectId;
+
+      const project = await tx.orm.public.Project.where({
+        id: projectId,
+      }).first();
+
+      if (project) {
+        const recipientIds = new Set<number>();
+
+        if (existingTask.assigneeId !== null) {
+          recipientIds.add(existingTask.assigneeId);
+        }
+
+        recipientIds.add(project.ownerId);
+        recipientIds.delete(userId);
+
+        for (const recipientId of recipientIds) {
+          await createNotificationWithClient(tx, {
+            userId: recipientId,
+            type: "TASK_STATUS_CHANGED",
+            title: "Task status updated",
+            message: `Task "${existingTask.title}" status changed from ${statusChange.oldValue} to ${statusChange.newValue}.`,
+            taskId: id,
+            projectId,
+          });
+        }
+      }
+    }
+
+    return mapTaskFromDb(updatedTask);
+  });
 };
 
 export const deleteTask = async (id: number, userId: number) => {
-  const tasks = await db.orm.public.Task.where({ id }).all();
-  const task = tasks[0];
+  const task = await db.orm.public.Task.where({ id }).first();
 
-  if (!task) {
+  if (!task || task.deletedAt !== null) {
     return false;
   }
 
@@ -219,25 +381,47 @@ export const deleteTask = async (id: number, userId: number) => {
   if (!project) {
     return false;
   }
-  return db.orm.public.Task.where({ id, projectId: project.id }).delete();
+  return db.transaction(async (tx) => {
+    const deletedAt = Temporal.Now.instant().toString();
+    const updatedTask = await tx.orm.public.Task.where({
+      id,
+      projectId: project.id,
+      deletedAt: null,
+    }).update({
+      deletedAt,
+      deletedById: userId,
+    });
+    if (!updatedTask) {
+      return false;
+    }
+    await tx.orm.public.TaskActivity.create({
+      taskId: id,
+      actorId: userId,
+      action: "DELETED",
+      description: "Deleted task",
+    });
+    return true;
+  });
 };
 
 export const getTasksByProjectId = async (
   projectId: number,
   userId: number,
 ) => {
-  const project = await getOwnedProject(projectId, userId);
+  const access = await getProjectAccess(projectId, userId);
 
-  if (!project) {
+  if (!access) {
     return null;
   }
 
   const tasks = await db.orm.public.Task.where({
     projectId,
+    deletedAt: null,
   }).all();
 
   return Promise.all(tasks.map((task) => attachProject(task)));
 };
+
 const attachProject = async (task: TaskRecord | null) => {
   if (!task) {
     return null;
@@ -277,4 +461,176 @@ const getOwnedProject = async (projectId: number, userId: number) => {
   }).all();
 
   return projects[0] ?? null;
+};
+
+export const assignTask = async (
+  taskId: number,
+  data: AssignTaskInput,
+  userId: number,
+) => {
+  const task = await db.orm.public.Task.where({ id: taskId }).first();
+
+  if (!task || task.deletedAt !== null) {
+    throw new ApiError(404, "Task not found");
+  }
+
+  const access = await getProjectAccess(task.projectId, userId);
+
+  if (!access) {
+    throw new ApiError(404, "Task not found");
+  }
+
+  if (data.assigneeId !== null) {
+    const project = await db.orm.public.Project.where({
+      id: task.projectId,
+    }).first();
+
+    if (!project) {
+      throw new ApiError(404, "Project not found");
+    }
+
+    const assignee = await db.orm.public.User.where({
+      id: data.assigneeId,
+    }).first();
+
+    if (!assignee) {
+      throw new ApiError(400, "Assignee not found");
+    }
+
+    const isOwner = project.ownerId === data.assigneeId;
+
+    const membership = await db.orm.public.ProjectMember.where({
+      projectId: task.projectId,
+      userId: data.assigneeId,
+      removedAt: null,
+    }).first();
+
+    if (!isOwner && !membership) {
+      throw new ApiError(
+        400,
+        "Task can only be assigned to the project owner or an active project member",
+      );
+    }
+  }
+
+  const previousAssigneeId = task.assigneeId;
+  const newAssigneeId = data.assigneeId;
+
+  if (previousAssigneeId === newAssigneeId) {
+    return task;
+  }
+
+  let action: "ASSIGNED" | "REASSIGNED" | "UNASSIGNED";
+
+  if (previousAssigneeId === null && newAssigneeId !== null) {
+    action = "ASSIGNED";
+  } else if (previousAssigneeId !== null && newAssigneeId === null) {
+    action = "UNASSIGNED";
+  } else {
+    action = "REASSIGNED";
+  }
+
+  return db.transaction(async (tx) => {
+    const updatedTask = await tx.orm.public.Task.where({
+      id: taskId,
+    }).update({
+      assigneeId: newAssigneeId,
+    });
+
+    await tx.orm.public.TaskAssignmentHistory.create({
+      taskId,
+      previousAssigneeId,
+      newAssigneeId,
+      performedById: userId,
+      action,
+      reason: data.reason,
+    });
+
+    if (previousAssigneeId !== newAssigneeId && newAssigneeId !== null) {
+      await createNotificationWithClient(tx, {
+        userId: newAssigneeId,
+        type: previousAssigneeId === null ? "TASK_ASSIGNED" : "TASK_REASSIGNED",
+        title:
+          previousAssigneeId === null
+            ? "Task assigned to you"
+            : "Task reassigned to you",
+        message: `You have been ${previousAssigneeId === null ? "assigned" : "reassigned"} a task :${task.title}`,
+        taskId,
+        projectId: task.projectId,
+      });
+    }
+    if (previousAssigneeId !== null && newAssigneeId === null) {
+      await createNotificationWithClient(tx, {
+        userId: previousAssigneeId,
+        type: "TASK_UNASSIGNED",
+        title: "Task unassigned",
+        message: `You have been unassigned from task: ${task.title}`,
+        taskId,
+        projectId: task.projectId,
+      });
+    }
+    return updatedTask;
+  });
+};
+
+export const restoreTask = async (id: number, userId: number) => {
+  const task = await db.orm.public.Task.where({ id }).first();
+
+  if (!task || task.deletedAt === null) {
+    return false;
+  }
+
+  const project = await getOwnedProject(task.projectId, userId);
+
+  if (!project) {
+    return false;
+  }
+
+  return db.transaction(async (tx) => {
+    const restoredTask = await tx.orm.public.Task.where({
+      id,
+      projectId: project.id,
+      deletedAt: task.deletedAt,
+    }).update({
+      deletedAt: null,
+      deletedById: null,
+      scheduledDeletionAt: null,
+    });
+    if (!restoredTask) {
+      return false;
+    }
+    await tx.orm.public.TaskActivity.create({
+      taskId: id,
+      actorId: userId,
+      action: "RESTORED",
+      description: "Restored task",
+    });
+
+    return true;
+  });
+};
+
+export const getTaskActivities = async (taskId: number, userId: number) => {
+  const task = await db.orm.public.Task.where({ id: taskId }).first();
+
+  if (!task || task.deletedAt !== null) {
+    throw new ApiError(404, "Task not found");
+  }
+
+  const access = await getProjectAccess(task.projectId, userId);
+
+  if (!access) {
+    throw new ApiError(404, "Task not found");
+  }
+
+  const activities = await db.orm.public.TaskActivity.where({
+    taskId,
+  }).all();
+
+  return activities.sort((a, b) =>
+    Temporal.Instant.compare(
+      Temporal.Instant.from(b.createdAt),
+      Temporal.Instant.from(a.createdAt),
+    ),
+  );
 };

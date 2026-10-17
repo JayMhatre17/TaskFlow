@@ -3,6 +3,7 @@ import { loginSchema } from "../schema/auth.schema";
 import { login } from "../service/auth.service";
 import {
   createSession,
+  deleteSession,
   getSessionById,
   isSessionExpired,
 } from "../service/session.service";
@@ -50,4 +51,28 @@ export const getCurrentUserController = (req: Request, res: Response) => {
   res.status(200).json({
     user: req.user!,
   });
+};
+
+export const logoutController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const sessionId = req.cookies?.taskflow_session;
+    if (sessionId) {
+      await deleteSession(sessionId);
+    }
+
+    res.clearCookie("taskflow_session", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+      path: "/",
+    });
+
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
 };

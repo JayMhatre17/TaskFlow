@@ -1,19 +1,24 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import {
+  assignTask,
   createTask,
   deleteTask,
+  getTaskActivities,
   getTaskById,
   getTasks,
   getTasksByProjectId,
+  restoreTask,
   updateTask,
 } from "../service/task.service";
 import {
+  assignTaskSchema,
   createTaskSchema,
   taskQuerySchema,
   updateTaskSchema,
 } from "../schema/task.schema";
 import { ApiError } from "../errors/api.error";
+import { parsePositiveId } from "./taskComment.controller";
 
 export const getTasksController = async (
   req: Request,
@@ -140,8 +145,12 @@ export const deleteTaskController = async (
         message: "Task not found",
       });
     }
-    await deleteTask(id, req.user!.id);
-
+    const deleted = await deleteTask(id, req.user!.id);
+    if (!deleted) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
     return res.status(204).send();
   } catch (error) {
     return next(error);
@@ -169,5 +178,71 @@ export const getTasksByProjectController = async (
     res.json(tasks);
   } catch (error) {
     next(error);
+  }
+};
+
+export const assignTaskController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const taskId = Number(req.params.taskId);
+
+    if (!Number.isSafeInteger(taskId) || taskId <= 0) {
+      throw new ApiError(400, "Invalid task ID");
+    }
+
+    const data = assignTaskSchema.safeParse(req.body);
+
+    if (!data.success) {
+      throw new ApiError(400, "Invalid request");
+    }
+
+    const task = await assignTask(taskId, data.data, req.user!.id);
+
+    return res.status(200).json({ task });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const restoreTaskController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = parsePositiveId(req.params.id, "task ID");
+
+    const userId = req.user!.id;
+
+    const restored = await restoreTask(id, userId);
+
+    if (!restored) {
+      throw new ApiError(404, "Task not found");
+    }
+
+    return res.status(200).json({ message: "Task restored Successfully" });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getTaskActivitiesController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = parsePositiveId(req.params.id, "task ID");
+
+    const userId = req.user!.id;
+
+    const activities = await getTaskActivities(id, userId);
+
+    return res.status(200).json({ activities });
+  } catch (error) {
+    return next(error);
   }
 };

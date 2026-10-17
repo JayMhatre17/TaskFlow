@@ -336,6 +336,10 @@ enum TaskActivityAction {
   RESTORED
   CLOSED
   REOPENED
+
+  COMMENT_ADDED
+  COMMENT_UPDATED
+  COMMENT_DELETED
 }
 
 model TaskActivity {
@@ -500,8 +504,9 @@ enum NotificationType {
   PROJECT_OWNERSHIP_TRANSFERRED
   ACCOUNT_DEACTIVATED
   ACCOUNT_DELETION
-}
 
+  PROJECT_INVITATION_ACCEPTED
+}
 model Notification {
   id Int @id @default(autoincrement())
 

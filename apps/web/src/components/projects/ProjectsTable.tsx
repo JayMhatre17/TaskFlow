@@ -1,13 +1,19 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import { createColumnHelper } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import DataTable from "@/components/common/DataTable";
+import DataTable, {
+  type DataTableFeatures,
+} from "@/components/common/DataTable";
 import { formatDate } from "@/lib/basicFn";
-import type { Project, ProjectListResponse } from "@/lib/api/project.api";
+import type {
+  Project,
+  ProjectListResponse,
+  ProjectSortField,
+} from "@/lib/api/project.api";
 
 import EmptyState from "../states/EmptyState";
 import ErrorState from "../states/ErrorState";
@@ -27,10 +33,10 @@ type SortOrder = "asc" | "desc";
 
 type SortableHeaderProps = {
   title: string;
-  sortKey: string;
+  sortKey: ProjectSortField;
   currentSortBy: string | null;
   currentSortOrder: string | null;
-  onSort: (sortBy: string) => void;
+  onSort: (sortBy: ProjectSortField) => void;
 };
 
 const SortableHeader = ({
@@ -74,7 +80,7 @@ const ProjectsTable = ({
   const sortBy = searchParams.get("sortBy");
   const sortOrder = searchParams.get("sortOrder");
 
-  const handleSort = (column: string) => {
+  const handleSort = (column: ProjectSortField) => {
     const params = new URLSearchParams(searchParams.toString());
 
     let nextSortOrder: SortOrder = "asc";
@@ -92,9 +98,9 @@ const ProjectsTable = ({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const columns: ColumnDef<Project>[] = [
-    {
-      accessorKey: "name",
+  const columnHelper = createColumnHelper<DataTableFeatures, Project>();
+  const columns = columnHelper.columns([
+    columnHelper.accessor("name", {
       header: () => (
         <SortableHeader
           title="Project"
@@ -104,7 +110,7 @@ const ProjectsTable = ({
           onSort={handleSort}
         />
       ),
-      cell: ({ row } : any) => {
+      cell: ({ row }) => {
         const project = row.original;
 
         return (
@@ -116,9 +122,8 @@ const ProjectsTable = ({
           </Link>
         );
       },
-    },
-    {
-      accessorKey: "status",
+    }),
+    columnHelper.accessor("status", {
       header: () => (
         <SortableHeader
           title="Status"
@@ -128,9 +133,8 @@ const ProjectsTable = ({
           onSort={handleSort}
         />
       ),
-    },
-    {
-      accessorKey: "startDate",
+    }),
+    columnHelper.accessor("startDate", {
       header: () => (
         <SortableHeader
           title="Start Date"
@@ -140,14 +144,9 @@ const ProjectsTable = ({
           onSort={handleSort}
         />
       ),
-      cell: ({ getValue }: any) => {
-        const value = getValue<string>();
-
-        return formatDate(value);
-      },
-    },
-    {
-      accessorKey: "dueDate",
+      cell: ({ getValue }) => formatDate(getValue()),
+    }),
+    columnHelper.accessor("dueDate", {
       header: () => (
         <SortableHeader
           title="Due Date"
@@ -157,14 +156,9 @@ const ProjectsTable = ({
           onSort={handleSort}
         />
       ),
-      cell: ({ getValue }: any) => {
-        const value = getValue<string>();
-
-        return formatDate(value);
-      },
-    },
-    {
-      accessorKey: "createdAt",
+      cell: ({ getValue }) => formatDate(getValue()),
+    }),
+    columnHelper.accessor("createdAt", {
       header: () => (
         <SortableHeader
           title="Created"
@@ -174,17 +168,15 @@ const ProjectsTable = ({
           onSort={handleSort}
         />
       ),
-      cell: ({ getValue }: any) => {
-        const value = getValue<string>();
-
-        return new Date(value).toLocaleDateString("en-IN", {
+      cell: ({ getValue }) => {
+        return new Date(getValue()).toLocaleDateString("en-IN", {
           day: "2-digit",
           month: "short",
           year: "numeric",
         });
       },
-    },
-  ];
+    }),
+  ]);
 
   if (isPending) {
     return <LoadingState message="Loading projects..." />;

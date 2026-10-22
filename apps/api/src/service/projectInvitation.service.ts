@@ -132,6 +132,37 @@ export const acceptProjectInvitation = async (
   }
 
   return db.transaction(async (tx) => {
+    const acceptedAt = new Date().toISOString();
+    const claimedInvitation = await tx.orm.public.ProjectInvitation.where({
+      id: invitation.id,
+      status: "PENDING",
+    })
+      .where((pending) => pending.expiresAt.gt(acceptedAt))
+      .update({
+        recipientId: userId,
+        status: "ACCEPTED",
+        acceptedAt,
+      });
+
+    if (!claimedInvitation) {
+      const currentInvitation = await tx.orm.public.ProjectInvitation.where({
+        id: invitation.id,
+      }).first();
+
+      if (!currentInvitation) {
+        throw new ApiError(404, "Invitation not found");
+      }
+
+      if (
+        currentInvitation.status === "PENDING" &&
+        new Date(currentInvitation.expiresAt).getTime() <= Date.now()
+      ) {
+        throw new ApiError(410, "Invitation has expired");
+      }
+
+      throw new ApiError(409, "Invitation is no longer pending");
+    }
+
     const existingMember = await tx.orm.public.ProjectMember.where({
       projectId: invitation.projectId,
       userId,
@@ -144,6 +175,7 @@ export const acceptProjectInvitation = async (
 
     const project = await tx.orm.public.Project.where({
       id: invitation.projectId,
+      deletedAt: null,
     }).first();
 
     if (!project) {
@@ -155,14 +187,6 @@ export const acceptProjectInvitation = async (
       userId,
       addedById: invitation.senderId,
       joinedAt: new Date().toISOString(),
-    });
-
-    await tx.orm.public.ProjectInvitation.where({
-      id: invitation.id,
-    }).update({
-      recipientId: userId,
-      status: "ACCEPTED",
-      acceptedAt: new Date().toISOString(),
     });
 
     await tx.orm.public.ProjectMembershipHistory.create({
@@ -205,6 +229,10 @@ export const rejectProjectInvitation = async (
     throw new ApiError(409, "Invitation is no longer pending");
   }
 
+  if (new Date(invitation.expiresAt).getTime() <= Date.now()) {
+    throw new ApiError(410, "Invitation has expired");
+  }
+
   const user = await db.orm.public.User.where({
     id: userId,
   }).first();
@@ -225,11 +253,37 @@ export const rejectProjectInvitation = async (
 
   const rejectedAt = new Date().toISOString();
 
-  return db.orm.public.ProjectInvitation.where({
-    id: invitation.id,
-  }).update({
-    status: "REJECTED",
-    rejectedAt,
+  return db.transaction(async (tx) => {
+    const rejectedInvitation = await tx.orm.public.ProjectInvitation.where({
+      id: invitation.id,
+      status: "PENDING",
+    })
+      .where((pending) => pending.expiresAt.gt(rejectedAt))
+      .update({
+        status: "REJECTED",
+        rejectedAt,
+      });
+
+    if (!rejectedInvitation) {
+      const currentInvitation = await tx.orm.public.ProjectInvitation.where({
+        id: invitation.id,
+      }).first();
+
+      if (!currentInvitation) {
+        throw new ApiError(404, "Invitation not found");
+      }
+
+      if (
+        currentInvitation.status === "PENDING" &&
+        new Date(currentInvitation.expiresAt).getTime() <= Date.now()
+      ) {
+        throw new ApiError(410, "Invitation has expired");
+      }
+
+      throw new ApiError(409, "Invitation is no longer pending");
+    }
+
+    return rejectedInvitation;
   });
 };
 
@@ -263,11 +317,20 @@ export const cancelProjectInvitation = async (
 
   const cancelledAt = new Date().toISOString();
 
-  return db.orm.public.ProjectInvitation.where({
-    id: invitation.id,
-  }).update({
-    status: "CANCELLED",
-    cancelledAt,
+  return db.transaction(async (tx) => {
+    const cancelledInvitation = await tx.orm.public.ProjectInvitation.where({
+      id: invitation.id,
+      status: "PENDING",
+    }).update({
+      status: "CANCELLED",
+      cancelledAt,
+    });
+
+    if (!cancelledInvitation) {
+      throw new ApiError(409, "Only pending invitations can be cancelled");
+    }
+
+    return cancelledInvitation;
   });
 };
 
@@ -289,4 +352,26 @@ export const getMyProjectInvitations = async (userId: number) => {
   ).all();
 
   return invitations;
+};
+
+export const getProjectInvitationsForOwner = async (
+  projectId: number,
+  userId: number,
+) => {
+  const access = await getProjectAccess(projectId, userId);
+
+  if (!access) {
+    throw new ApiError(404, "Project not found");
+  }
+
+  if (access.role !== "OWNER") {
+    throw new ApiError(403, "Only the project owner can list invitations");
+  }
+
+  return db.orm.public.ProjectInvitation.where({
+    projectId,
+    status: "PENDING",
+  })
+    .orderBy((invitation) => invitation.createdAt.desc())
+    .all();
 };

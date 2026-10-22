@@ -9,8 +9,31 @@ import {
   cancelProjectInvitation,
   createProjectInvitation,
   getMyProjectInvitations,
+  getProjectInvitationsForOwner,
   rejectProjectInvitation,
 } from "../service/projectInvitation.service";
+
+const toPublicProjectInvitation = (invitation: {
+  id: number;
+  projectId: number;
+  email: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+  expiresAt: string;
+  acceptedAt: string | null;
+  rejectedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+}) => ({
+  id: invitation.id,
+  projectId: invitation.projectId,
+  email: invitation.email,
+  status: invitation.status,
+  expiresAt: invitation.expiresAt,
+  acceptedAt: invitation.acceptedAt,
+  rejectedAt: invitation.rejectedAt,
+  cancelledAt: invitation.cancelledAt,
+  createdAt: invitation.createdAt,
+});
 
 export const createProjectInvitationController = async (
   req: Request,
@@ -28,7 +51,7 @@ export const createProjectInvitationController = async (
       throw new ApiError(400, "Invalid invitation data");
     }
 
-    const invitaion = await createProjectInvitation(
+    const invitation = await createProjectInvitation(
       projectId,
       result.data.email,
       req.user!.id,
@@ -36,8 +59,8 @@ export const createProjectInvitationController = async (
 
     return res.status(201).json({
       message: "Project invitiation created successfully",
-      invitation: invitaion.invitation,
-      token: invitaion.token,
+      invitation: toPublicProjectInvitation(invitation.invitation),
+      token: invitation.token,
     });
   } catch (error) {
     return next(error);
@@ -90,7 +113,13 @@ export const projectInvitationActionController = async (
     if (action === "ACCEPT") {
       invitation = await acceptProjectInvitation(token, req.user!.id);
     } else if (action === "REJECT") {
-      invitation = await rejectProjectInvitation(token, req.user!.id);
+      const rejectedInvitation = await rejectProjectInvitation(
+        token,
+        req.user!.id,
+      );
+      invitation = rejectedInvitation
+        ? toPublicProjectInvitation(rejectedInvitation)
+        : null;
     }
 
     return res.status(200).json({
@@ -127,7 +156,7 @@ export const cancelProjectInvitationController = async (
 
     return res.status(200).json({
       message: "Project invitation cancelled successfully",
-      invitation,
+      invitation: invitation ? toPublicProjectInvitation(invitation) : null,
     });
   } catch (error) {
     return next(error);
@@ -142,7 +171,33 @@ export const getMyProjectInvitationsController = async (
   try {
     const invitations = await getMyProjectInvitations(req.user!.id);
 
-    return res.status(200).json({ invitations });
+    return res.status(200).json({
+      invitations: invitations.map(toPublicProjectInvitation),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getProjectInvitationsForProjectController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = Number(req.params.projectId);
+    if (!Number.isSafeInteger(projectId) || projectId <= 0) {
+      throw new ApiError(400, "Invalid project ID");
+    }
+
+    const invitations = await getProjectInvitationsForOwner(
+      projectId,
+      req.user!.id,
+    );
+
+    return res.status(200).json({
+      invitations: invitations.map(toPublicProjectInvitation),
+    });
   } catch (error) {
     return next(error);
   }

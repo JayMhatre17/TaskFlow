@@ -39,7 +39,6 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
       />
     );
   }
-  console.log(task);
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -82,6 +81,19 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
               <p className="mt-1 font-medium">
                 {task.project?.name ?? "Unknown project"}
               </p>
+            </div>
+
+            {/* Assignee */}
+            <div>
+              <p className="text-sm text-muted-foreground">Assignee</p>
+              <p className="mt-1 font-medium">
+                {task.assignee?.name ?? "Unassigned"}
+              </p>
+              {task.assignee?.email && (
+                <p className="text-sm text-muted-foreground">
+                  {task.assignee.email}
+                </p>
+              )}
             </div>
 
             {/* Priority */}

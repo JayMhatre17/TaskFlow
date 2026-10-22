@@ -18,10 +18,22 @@ const toActivityValue = (value: unknown): string | null => {
 };
 
 export const getProjects = async (query: ProjectQueryInput, userId: number) => {
-  let projectQuery = db.orm.public.Project.where({
-    ownerId: userId,
-    deletedAt: null,
-  });
+  const memberships = await db.orm.public.ProjectMember.where({
+    userId,
+    removedAt: null,
+  }).all();
+  const memberProjectIds = memberships.map(
+    (membership) => membership.projectId,
+  );
+
+  let projectQuery = db.orm.public.Project.where((project) =>
+    memberProjectIds.length > 0
+      ? or(
+          project.ownerId.eq(userId),
+          ...memberProjectIds.map((projectId) => project.id.eq(projectId)),
+        )
+      : project.ownerId.eq(userId),
+  ).where({ deletedAt: null });
 
   if (query.status) {
     projectQuery = projectQuery.where({
@@ -68,11 +80,26 @@ export const getProjects = async (query: ProjectQueryInput, userId: number) => {
   };
 };
 export const getProjectById = async (id: number, userId: number) => {
-  return db.orm.public.Project.first({
+  const project = await db.orm.public.Project.first({
     id,
-    ownerId: userId,
     deletedAt: null,
   });
+
+  if (!project) {
+    throw new ApiError(404, "Project not found");
+  }
+
+  if (project.ownerId === userId) {
+    return project;
+  }
+
+  const membership = await db.orm.public.ProjectMember.first({
+    projectId: project.id,
+    userId: userId,
+    removedAt: null,
+  });
+
+  return membership ? project : null;
 };
 
 export const createProject = async (

@@ -4,6 +4,7 @@ import {
   getMyNotificationsController,
   getUnreadNotificationCountController,
   markAllNotificationsAsReadController,
+  markNotificationAsReadController,
 } from "../controllers/notification.controller";
 
 const router = Router();
@@ -14,7 +15,7 @@ router.get("/unread-count", getUnreadNotificationCountController);
 
 router.patch("/read-all", markAllNotificationsAsReadController);
 
-router.patch("/:id/read", markAllNotificationsAsReadController);
+router.patch("/:id/read", markNotificationAsReadController);
 
 router.get("/", getMyNotificationsController);
 

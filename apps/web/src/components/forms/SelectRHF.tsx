@@ -20,6 +20,7 @@ type SelectRHFProps = {
   label?: string;
   placeholder?: string;
   options: SelectOption[];
+  disabled?: boolean;
 };
 
 const SelectRHF = ({
@@ -27,6 +28,7 @@ const SelectRHF = ({
   label,
   placeholder = "Select an option",
   options,
+  disabled = false,
 }: SelectRHFProps) => {
   const { control } = useFormContext();
 
@@ -46,8 +48,12 @@ const SelectRHF = ({
 
           return (
             <>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger>
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={disabled}
+              >
+                <SelectTrigger disabled={disabled}>
                   <SelectValue placeholder={placeholder}>
                     {selectedOption?.label}
                   </SelectValue>

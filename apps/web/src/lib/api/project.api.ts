@@ -3,6 +3,7 @@ import { Task } from "./task.api";
 
 export type Project = {
   id: number;
+  ownerId: number;
   name: string;
   description: string | null;
   status: "Active" | "On Hold";

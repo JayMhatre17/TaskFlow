@@ -70,6 +70,20 @@ describe("requireAuth middleware", () => {
     });
   });
 
+  it("should reject an existing session after the account is deactivated", async () => {
+    const { user, session } = await createAuthenticatedUser();
+    await db.orm.public.User.where({ id: user.id }).update({
+      status: "DEACTIVATED",
+    });
+
+    const response = await request(app)
+      .get("/protected")
+      .set("Cookie", `taskflow_session=${session.id}`);
+
+    expect(response.status).toBe(401);
+    expect(response.body.message).toBe("Invalid or expired session");
+  });
+
   it("should reject a request without a session cookie", async () => {
     const response = await request(app).get("/protected");
 

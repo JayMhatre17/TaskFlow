@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   authenticatedRequest,
   authenticatedRequestWithSession,
@@ -60,6 +60,60 @@ describe("Task API", () => {
     expect(response.body).toHaveProperty("pagination");
   });
 
+  it("excludes tasks from soft-deleted projects from results and pagination totals", async () => {
+    const marker = `[TEST] Project visibility ${Date.now()}`;
+    const activeProject = await createTestProject({
+      name: `${marker} active project`,
+    });
+    const deletedProject = await createTestProject({
+      name: `${marker} deleted project`,
+    });
+
+    try {
+      const activeTaskResponse = await authenticatedRequest()
+        .post("/api/tasks")
+        .send({
+          title: `${marker} active task`,
+          status: "TODO",
+          priority: "LOW",
+          projectId: activeProject.id,
+        });
+      const deletedTaskResponse = await authenticatedRequest()
+        .post("/api/tasks")
+        .send({
+          title: `${marker} deleted-project task`,
+          status: "TODO",
+          priority: "LOW",
+          projectId: deletedProject.id,
+        });
+
+      expect(activeTaskResponse.status).toBe(201);
+      expect(deletedTaskResponse.status).toBe(201);
+
+      const deleteProjectResponse = await authenticatedRequest().delete(
+        `/api/projects/${deletedProject.id}`,
+      );
+      expect(deleteProjectResponse.status).toBe(204);
+
+      const response = await authenticatedRequest()
+        .get("/api/tasks")
+        .query({ search: marker, limit: 100 });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.map((task: { id: number }) => task.id)).toContain(
+        activeTaskResponse.body.id,
+      );
+      expect(response.body.data.map((task: { id: number }) => task.id)).not.toContain(
+        deletedTaskResponse.body.id,
+      );
+      expect(response.body.pagination.total).toBe(1);
+      expect(response.body.pagination.totalPages).toBe(1);
+    } finally {
+      await db.orm.public.Project.where({ id: activeProject.id }).delete();
+      await db.orm.public.Project.where({ id: deletedProject.id }).delete();
+    }
+  });
+
   it("should create a task", async () => {
     const response = await authenticatedRequest().post("/api/tasks").send({
       title: "[TEST] Automated test task",
@@ -74,6 +128,7 @@ describe("Task API", () => {
     expect(response.body).toHaveProperty("id");
     expect(response.body.status).toBe("TODO");
     expect(response.body.priority).toBe("HIGH");
+    expect(response.body.assignee).toBeNull();
 
     createdTaskId = response.body.id;
   });
@@ -102,6 +157,16 @@ describe("Task API", () => {
     expect(response.body.title).toBe("[TEST] Get task by id");
     expect(response.body.status).toBe("TODO");
     expect(response.body.priority).toBe("HIGH");
+    expect(response.body.assignee).toBeNull();
+
+    const listResponse = await authenticatedRequest()
+      .get("/api/tasks")
+      .query({ search: "Get task by id", projectId: testProjectId });
+    const listedTask = listResponse.body.data.find(
+      (task: { id: number }) => task.id === createdTaskId,
+    );
+    expect(listResponse.status).toBe(200);
+    expect(listedTask?.assignee).toBeNull();
   });
   it("should return 404 for a non-existent task", async () => {
     const response = await authenticatedRequest().get("/api/tasks/999999999");
@@ -1269,6 +1334,170 @@ describe("Task API", () => {
       await anotherUser.cleanup();
     }
   });
+
+  it("should deny removed members task detail and project task list access while preserving owner access", async () => {
+    const owner = await createAuthenticatedAgent();
+    const member = await createAuthenticatedAgent();
+
+    try {
+      const ownerRequest = authenticatedRequestWithSession(owner.session.id);
+      const memberRequest = authenticatedRequestWithSession(member.session.id);
+      const projectResponse = await ownerRequest.post("/api/projects").send({
+        name: `[TEST] Member task access ${Date.now()}`,
+        description: "Task access after membership removal test",
+        status: "Active",
+        startDate: "2026-01-01",
+        dueDate: "2026-12-31",
+      });
+      expect(projectResponse.status).toBe(201);
+      const projectId = projectResponse.body.id;
+
+      const taskResponse = await ownerRequest.post("/api/tasks").send({
+        title: "[TEST] Task access after member removal",
+        description: "Accessible before membership removal",
+        status: "TODO",
+        priority: "LOW",
+        projectId,
+      });
+      expect(taskResponse.status).toBe(201);
+      const taskId = taskResponse.body.id;
+
+      const addMemberResponse = await ownerRequest
+        .post(`/api/projects/${projectId}/members`)
+        .send({ userId: member.user.id });
+      expect(addMemberResponse.status).toBe(201);
+
+      const memberTaskResponse = await memberRequest.get(
+        `/api/tasks/${taskId}`,
+      );
+      expect(memberTaskResponse.status).toBe(200);
+      expect(memberTaskResponse.body.id).toBe(taskId);
+
+      const memberProjectTasksResponse = await memberRequest.get(
+        `/api/projects/${projectId}/tasks`,
+      );
+      expect(memberProjectTasksResponse.status).toBe(200);
+      expect(
+        memberProjectTasksResponse.body.some(
+          (task: { id: number }) => task.id === taskId,
+        ),
+      ).toBe(true);
+
+      const removeMemberResponse = await ownerRequest.delete(
+        `/api/projects/${projectId}/members/${member.user.id}`,
+      );
+      expect(removeMemberResponse.status).toBe(204);
+
+      const removedMemberTaskResponse = await memberRequest.get(
+        `/api/tasks/${taskId}`,
+      );
+      expect(removedMemberTaskResponse.status).toBe(404);
+
+      const removedMemberProjectTasksResponse = await memberRequest.get(
+        `/api/projects/${projectId}/tasks`,
+      );
+      expect(removedMemberProjectTasksResponse.status).toBe(404);
+
+      const ownerTaskResponse = await ownerRequest.get(`/api/tasks/${taskId}`);
+      expect(ownerTaskResponse.status).toBe(200);
+      expect(ownerTaskResponse.body.id).toBe(taskId);
+
+      const ownerProjectTasksResponse = await ownerRequest.get(
+        `/api/projects/${projectId}/tasks`,
+      );
+      expect(ownerProjectTasksResponse.status).toBe(200);
+      expect(
+        ownerProjectTasksResponse.body.some(
+          (task: { id: number }) => task.id === taskId,
+        ),
+      ).toBe(true);
+    } finally {
+      await owner.cleanup();
+      await member.cleanup();
+    }
+  });
+
+  it("non-owner cannot add or remove project members", async () => {
+    const owner = await createAuthenticatedAgent();
+    const requester = await createAuthenticatedAgent();
+    const existingMember = await createAuthenticatedAgent();
+    const proposedMember = await createAuthenticatedAgent();
+    const project = await db.orm.public.Project.create({
+      name: `[TEST] Member authorization ${Date.now()}`,
+      description: "Project member route authorization test",
+      status: "Active",
+      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+      ownerId: owner.user.id,
+    });
+
+    try {
+      for (const member of [requester, existingMember]) {
+        await db.orm.public.ProjectMember.create({
+          projectId: project.id,
+          userId: member.user.id,
+          addedById: owner.user.id,
+          joinedAt: new Date().toISOString(),
+          removedAt: null,
+        });
+        await db.orm.public.ProjectMembershipHistory.create({
+          projectId: project.id,
+          userId: member.user.id,
+          action: "JOINED",
+          performedById: owner.user.id,
+        });
+      }
+
+      const memberRequest = authenticatedRequestWithSession(
+        requester.session.id,
+      );
+      const addResponse = await memberRequest
+        .post(`/api/projects/${project.id}/members`)
+        .send({ userId: proposedMember.user.id });
+      const removeResponse = await memberRequest.delete(
+        `/api/projects/${project.id}/members/${existingMember.user.id}`,
+      );
+
+      expect(addResponse.status).toBe(403);
+      expect(removeResponse.status).toBe(403);
+
+      const memberships = await db.orm.public.ProjectMember.where({
+        projectId: project.id,
+      }).all();
+      expect(memberships).toHaveLength(2);
+      expect(memberships).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            userId: requester.user.id,
+            removedAt: null,
+          }),
+          expect.objectContaining({
+            userId: existingMember.user.id,
+            removedAt: null,
+          }),
+        ]),
+      );
+
+      const membershipHistory =
+        await db.orm.public.ProjectMembershipHistory.where({
+          projectId: project.id,
+        }).all();
+      expect(membershipHistory).toHaveLength(2);
+      expect(membershipHistory.map(({ userId, action }) => ({ userId, action }))).toEqual(
+        expect.arrayContaining([
+          { userId: requester.user.id, action: "JOINED" },
+          { userId: existingMember.user.id, action: "JOINED" },
+        ]),
+      );
+    } finally {
+      await db.orm.public.Project.where({ id: project.id }).delete();
+      await owner.cleanup();
+      await requester.cleanup();
+      await existingMember.cleanup();
+      await proposedMember.cleanup();
+    }
+  });
+
   it("should allow the project owner to assign a task to an active member", async () => {
     const owner = await createTestUser("api-assignment-owner");
     const member = await createTestUser("api-assignment-member");
@@ -1309,6 +1538,46 @@ describe("Task API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.task.assigneeId).toBe(member.id);
+    expect(response.body.task.assignee).toEqual({
+      id: member.id,
+      name: member.name,
+      email: member.email,
+    });
+
+    const detailResponse = await authenticatedRequestWithSession(ownerSession.id)
+      .get(`/api/tasks/${task.id}`);
+    expect(detailResponse.status).toBe(200);
+    expect(detailResponse.body.assignee).toEqual({
+      id: member.id,
+      name: member.name,
+      email: member.email,
+    });
+
+    const listResponse = await authenticatedRequestWithSession(ownerSession.id)
+      .get("/api/tasks")
+      .query({ search: "API Assignment task", projectId: project.id });
+    expect(listResponse.status).toBe(200);
+    const listedTask = listResponse.body.data.find(
+      (listed: { id: number }) => listed.id === task.id,
+    );
+    expect(listedTask?.assignee).toEqual({
+      id: member.id,
+      name: member.name,
+      email: member.email,
+    });
+
+    const projectTasksResponse = await authenticatedRequestWithSession(
+      ownerSession.id,
+    ).get(`/api/projects/${project.id}/tasks`);
+    expect(projectTasksResponse.status).toBe(200);
+    const projectTask = projectTasksResponse.body.find(
+      (listed: { id: number }) => listed.id === task.id,
+    );
+    expect(projectTask?.assignee).toEqual({
+      id: member.id,
+      name: member.name,
+      email: member.email,
+    });
   });
   it("should prevent a non-member from assigning a task", async () => {
     const owner = await createTestUser("assignment-owner");
@@ -1477,6 +1746,127 @@ describe("Task API", () => {
     expect(history[0].reason).toBe("Reassign task");
   });
 
+  it("should keep concurrent task reassignment history in sequence", async () => {
+    const owner = await createAuthenticatedAgent();
+    const previousAssignee = await createAuthenticatedAgent();
+    const nextAssigneeA = await createAuthenticatedAgent();
+    const nextAssigneeB = await createAuthenticatedAgent();
+    let releaseTransactions!: () => void;
+    let signalBothTransactions!: () => void;
+    let transactionEntrants = 0;
+    const transactionGate = new Promise<void>((resolve) => {
+      releaseTransactions = resolve;
+    });
+    const bothTransactionsWaiting = new Promise<void>((resolve) => {
+      signalBothTransactions = resolve;
+    });
+    const originalTransaction = db.transaction.bind(db);
+    const transactionSpy = vi
+      .spyOn(db, "transaction")
+      .mockImplementation((callback) =>
+        originalTransaction(async (tx) => {
+          transactionEntrants += 1;
+          if (transactionEntrants === 2) {
+            signalBothTransactions();
+          }
+          await transactionGate;
+          return callback(tx);
+        }),
+      );
+
+    try {
+      const project = await db.orm.public.Project.create({
+        name: `[TEST] Concurrent Assignment Project ${Date.now()}`,
+        description: "Concurrent task reassignment test",
+        status: "Active",
+        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+        dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+        ownerId: owner.user.id,
+      });
+
+      for (const member of [
+        previousAssignee,
+        nextAssigneeA,
+        nextAssigneeB,
+      ]) {
+        await db.orm.public.ProjectMember.create({
+          projectId: project.id,
+          userId: member.user.id,
+          addedById: owner.user.id,
+          joinedAt: new Date().toISOString(),
+          removedAt: null,
+        });
+      }
+
+      const task = await db.orm.public.Task.create({
+        title: "[TEST] Concurrent Reassignment Task",
+        description: "Both requests begin from the same assignee",
+        status: 1,
+        priority: 2,
+        projectId: project.id,
+        creatorId: owner.user.id,
+        assigneeId: previousAssignee.user.id,
+      });
+
+      const firstRequest = assignTask(
+        task.id,
+        { assigneeId: nextAssigneeA.user.id },
+        owner.user.id,
+      );
+      const secondRequest = assignTask(
+        task.id,
+        { assigneeId: nextAssigneeB.user.id },
+        owner.user.id,
+      );
+
+      await bothTransactionsWaiting;
+      releaseTransactions();
+      const outcomes = await Promise.allSettled([firstRequest, secondRequest]);
+      const successfulRequests = outcomes.filter(
+        (outcome) => outcome.status === "fulfilled",
+      );
+      const rejectedRequests = outcomes.filter(
+        (outcome) => outcome.status === "rejected",
+      );
+
+      const history = await db.orm.public.TaskAssignmentHistory.where({
+        taskId: task.id,
+      })
+        .orderBy((entry) => entry.id.asc())
+        .all();
+      const finalTask = await db.orm.public.Task.where({ id: task.id }).first();
+      const notifications = await db.orm.public.Notification.where({
+        taskId: task.id,
+      }).all();
+
+      expect(successfulRequests).toHaveLength(1);
+      expect(rejectedRequests).toHaveLength(1);
+      expect(rejectedRequests[0]).toMatchObject({
+        status: "rejected",
+        reason: { statusCode: 409 },
+      });
+      expect(history).toHaveLength(successfulRequests.length);
+      expect(history[0].previousAssigneeId).toBe(previousAssignee.user.id);
+      for (let index = 1; index < history.length; index += 1) {
+        expect(history[index].previousAssigneeId).toBe(
+          history[index - 1].newAssigneeId,
+        );
+      }
+      expect(history[history.length - 1].newAssigneeId).toBe(finalTask?.assigneeId);
+      expect(notifications).toHaveLength(successfulRequests.length);
+      expect(notifications.map((notification) => notification.userId)).toEqual(
+        history.map((entry) => entry.newAssigneeId),
+      );
+    } finally {
+      releaseTransactions();
+      transactionSpy.mockRestore();
+      await owner.cleanup();
+      await previousAssignee.cleanup();
+      await nextAssigneeA.cleanup();
+      await nextAssigneeB.cleanup();
+    }
+  });
+
   it("should prevent a non-member from assigning a task", async () => {
     const owner = await createTestUser("assignment-owner-4");
     const member = await createTestUser("assignment-member-4");
@@ -1617,6 +2007,96 @@ describe("Task API", () => {
     ).rejects.toMatchObject({
       statusCode: 400,
     });
+  });
+
+  it("should reject assigning a task to an inactive project member without changing its assignee", async () => {
+    const owner = await createTestUser("inactive-assignee-owner");
+    const inactiveMember = await createTestUser("inactive-assignee-member");
+
+    const project = await db.orm.public.Project.create({
+      name: `[TEST] Inactive Member Assignment Project ${Date.now()}`,
+      description: "Inactive member assignment test",
+      status: "Active",
+      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+      ownerId: owner.id,
+    });
+
+    await db.orm.public.ProjectMember.create({
+      projectId: project.id,
+      userId: inactiveMember.id,
+      addedById: owner.id,
+      joinedAt: new Date().toISOString(),
+      removedAt: null,
+    });
+    await db.orm.public.User.where({ id: inactiveMember.id }).update({
+      status: "DEACTIVATED",
+    });
+
+    const task = await db.orm.public.Task.create({
+      title: "[TEST] Inactive Member Assignment Task",
+      description: "The existing assignee should remain unchanged",
+      status: 1,
+      priority: 2,
+      projectId: project.id,
+      creatorId: owner.id,
+      assigneeId: owner.id,
+    });
+
+    await expect(
+      assignTask(task.id, { assigneeId: inactiveMember.id }, owner.id),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Assignee must have an active account",
+    });
+
+    const unchangedTask = await db.orm.public.Task.where({ id: task.id }).first();
+    expect(unchangedTask?.assigneeId).toBe(owner.id);
+  });
+
+  it("should reject assigning a task to an inactive project owner without changing its assignee", async () => {
+    const inactiveOwner = await createTestUser("inactive-owner-assignee");
+    const activeMember = await createTestUser("active-member-inactive-owner");
+
+    const project = await db.orm.public.Project.create({
+      name: `[TEST] Inactive Owner Assignment Project ${Date.now()}`,
+      description: "Inactive owner assignment test",
+      status: "Active",
+      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+      ownerId: inactiveOwner.id,
+    });
+
+    await db.orm.public.ProjectMember.create({
+      projectId: project.id,
+      userId: activeMember.id,
+      addedById: inactiveOwner.id,
+      joinedAt: new Date().toISOString(),
+      removedAt: null,
+    });
+    await db.orm.public.User.where({ id: inactiveOwner.id }).update({
+      status: "DEACTIVATED",
+    });
+
+    const task = await db.orm.public.Task.create({
+      title: "[TEST] Inactive Owner Assignment Task",
+      description: "The existing assignee should remain unchanged",
+      status: 1,
+      priority: 2,
+      projectId: project.id,
+      creatorId: activeMember.id,
+      assigneeId: activeMember.id,
+    });
+
+    await expect(
+      assignTask(task.id, { assigneeId: inactiveOwner.id }, activeMember.id),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Assignee must have an active account",
+    });
+
+    const unchangedTask = await db.orm.public.Task.where({ id: task.id }).first();
+    expect(unchangedTask?.assigneeId).toBe(activeMember.id);
   });
 
   it("should prevent assigning task to a nonexistent user", async () => {
@@ -1781,6 +2261,7 @@ describe("Task API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.task.assigneeId).toBeNull();
+    expect(response.body.task.assignee).toBeNull();
   });
 
   it("should reject an invalid task ID", async () => {
@@ -2006,6 +2487,56 @@ describe("Task API", () => {
 
     expect(activities).toHaveLength(1);
   });
+
+  it("should reject restoring a task when its parent project is soft-deleted", async () => {
+    const owner = await createAuthenticatedAgent();
+    const project = await db.orm.public.Project.create({
+      name: `[TEST] Deleted Parent Restore Project ${Date.now()}`,
+      description: "Restore task under a deleted project test",
+      status: "Active",
+      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+      ownerId: owner.user.id,
+    });
+    const taskDeletedAt = Temporal.Now.instant().toString();
+
+    try {
+      const task = await db.orm.public.Task.create({
+        title: "[TEST] Deleted task under deleted project",
+        description: "The parent project is also deleted",
+        status: 1,
+        priority: 2,
+        projectId: project.id,
+        creatorId: owner.user.id,
+        deletedAt: taskDeletedAt,
+        deletedById: owner.user.id,
+      });
+
+      await db.orm.public.Project.where({ id: project.id }).update({
+        deletedAt: Temporal.Now.instant().toString(),
+        deletedById: owner.user.id,
+      });
+
+      const response = await authenticatedRequestWithSession(
+        owner.session.id,
+      ).patch(`/api/tasks/${task.id}/restore`);
+
+      expect(response.status).toBe(404);
+
+      const unchangedTask = await db.orm.public.Task.where({ id: task.id }).first();
+      expect(unchangedTask?.deletedAt).not.toBeNull();
+
+      const activities = await db.orm.public.TaskActivity.where({
+        taskId: task.id,
+        action: "RESTORED",
+      }).all();
+      expect(activities).toHaveLength(0);
+    } finally {
+      await db.orm.public.Project.where({ id: project.id }).delete();
+      await owner.cleanup();
+    }
+  });
+
   it("should reject restoring an active task", async () => {
     const owner = await createTestUser("active-task-restore-owner");
 
@@ -2386,7 +2917,7 @@ describe("Task API", () => {
       priority: 2,
       projectId: project.id,
       creatorId: owner.id,
-      deletedAt: Temporal.Instant.from("2026-10-01T00:00:00Z"),
+      deletedAt: Temporal.Instant.from("2026-10-01T00:00:00Z").toString(),
       deletedById: owner.id,
     });
 
@@ -2510,5 +3041,90 @@ describe("Task API", () => {
     expect(activities).toHaveLength(0);
   });
 
+  it("should notify the assignee but not the actor when the project owner changes task status", async () => {
+    const owner = await createTestUser("status-notification-owner");
+    const assignee = await createTestUser("status-notification-assignee");
 
+    const project = await db.orm.public.Project.create({
+      name: `[TEST] Status Notification Project ${Date.now()}`,
+      description: "Testing status notifications",
+      status: "Active",
+      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+      ownerId: owner.id,
+    });
+
+    const task = await db.orm.public.Task.create({
+      title: "[TEST] Status Notification Task",
+      description: "Testing notifications",
+      status: 1,
+      priority: 2,
+      projectId: project.id,
+      creatorId: owner.id,
+      assigneeId: assignee.id,
+    });
+
+    const session = await createSession(owner.id);
+
+    const response = await authenticatedRequestWithSession(session.id)
+      .patch(`/api/tasks/${task.id}`)
+      .send({ status: "IN_PROGRESS" });
+
+    expect(response.status).toBe(200);
+
+    const assigneeNotifications = await db.orm.public.Notification.where({
+      userId: assignee.id,
+      taskId: task.id,
+      type: "TASK_STATUS_CHANGED",
+    }).all();
+
+    expect(assigneeNotifications).toHaveLength(1);
+
+    const ownerNotifications = await db.orm.public.Notification.where({
+      userId: owner.id,
+      taskId: task.id,
+      type: "TASK_STATUS_CHANGED",
+    }).all();
+
+    expect(ownerNotifications).toHaveLength(0);
+  });
+
+  it("should not notify the actor when the project owner changes their own assigned task status", async () => {
+    const owner = await createTestUser("owner-assignee-notification");
+
+    const project = await db.orm.public.Project.create({
+      name: `[TEST] Owner Assignee Project ${Date.now()}`,
+      description: "Testing duplicate notifications",
+      status: "Active",
+      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+      ownerId: owner.id,
+    });
+
+    const task = await db.orm.public.Task.create({
+      title: "[TEST] Owner Assigned Task",
+      description: "Testing actor exclusion",
+      status: 1,
+      priority: 2,
+      projectId: project.id,
+      creatorId: owner.id,
+      assigneeId: owner.id,
+    });
+
+    const session = await createSession(owner.id);
+
+    const response = await authenticatedRequestWithSession(session.id)
+      .patch(`/api/tasks/${task.id}`)
+      .send({ status: "IN_PROGRESS" });
+
+    expect(response.status).toBe(200);
+
+    const notifications = await db.orm.public.Notification.where({
+      userId: owner.id,
+      taskId: task.id,
+      type: "TASK_STATUS_CHANGED",
+    }).all();
+
+    expect(notifications).toHaveLength(0);
+  });
 });

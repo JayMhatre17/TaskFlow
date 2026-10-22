@@ -4,6 +4,12 @@ export type TaskStatus = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "COMPLETED";
 
 export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
+export type TaskAssigneeSummary = {
+  id: number;
+  name: string;
+  email: string;
+};
+
 export type Task = {
   id: number;
   title: string;
@@ -12,8 +18,10 @@ export type Task = {
   priority: TaskPriority;
   dueDate: string | null;
   projectId: number;
+  assigneeId: number | null;
+  assignee: TaskAssigneeSummary | null;
 
-  project: {
+  project?: {
     id: number;
     name: string;
   } | null;
@@ -41,6 +49,20 @@ export type TaskListResponse = {
   };
 };
 export type UpdateTaskInput = Partial<CreateTaskInput>;
+
+export type AssignTaskInput = {
+  assigneeId: number | null;
+  reason?: string;
+};
+
+export type AssignTaskResponse = {
+  task: {
+    id: number;
+    projectId: number;
+    assigneeId: number | null;
+    assignee: TaskAssigneeSummary | null;
+  } | null;
+};
 
 // all tasks
 export const getTasks = (
@@ -94,6 +116,13 @@ export const updateTask = (id: number, data: UpdateTaskInput) => {
     body: data,
   });
 };
+
+export const assignTask = (taskId: number, data: AssignTaskInput) =>
+  apiRequest<AssignTaskResponse>({
+    method: "PATCH",
+    path: `/api/tasks/${taskId}/assignment`,
+    body: data,
+  });
 
 //delete task
 export const deleteTask = (id: number) => {

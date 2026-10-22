@@ -1,44 +1,117 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import { createColumnHelper } from "@tanstack/react-table";
+import { toast } from "sonner";
+import DataTable, {
+  type DataTableFeatures,
+} from "@/components/common/DataTable";
+import EmptyState from "@/components/states/EmptyState";
+import ErrorState from "@/components/states/ErrorState";
+import LoadingState from "@/components/states/LoadingState";
+import { Button } from "@/components/ui/button";
+import {
+  type ProjectMemberSummary,
+} from "@/lib/api/project-collaboration.api";
+import { useProjectMembers } from "@/hooks/queries/useProjectMembers";
+import { useRemoveProjectMember } from "@/hooks/mutation/useProjectMemberMutations";
 
-import { Badge } from "@/components/ui/badge";
+const TeamTable = ({
+  projectId,
+  canManage,
+}: {
+  projectId: number;
+  canManage: boolean;
+}) => {
+  const membersQuery = useProjectMembers(projectId);
+  const removeMemberMutation = useRemoveProjectMember();
+  const columnHelper = createColumnHelper<
+    DataTableFeatures,
+    ProjectMemberSummary
+  >();
+  const columns = columnHelper.columns([
+    columnHelper.accessor("name", {
+      header: "Member",
+      cell: ({ row }) => row.original.name ?? `User ${row.original.userId}`,
+    }),
+    columnHelper.accessor("email", {
+      header: "Email",
+      cell: ({ getValue }) => getValue() ?? "—",
+    }),
+    columnHelper.accessor("joinedAt", {
+      header: "Joined",
+      cell: ({ getValue }) =>
+        new Date(getValue()).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
+    }),
+    columnHelper.display({
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        if (!canManage) {
+          return null;
+        }
 
-import { teamMembers, type TeamMember } from "./team-data";
-import DataTable from "../common/DataTable";
+        const member = row.original;
+        const isRemoving =
+          removeMemberMutation.isPending &&
+          removeMemberMutation.variables?.userId === member.userId;
 
-const columns: ColumnDef<any, TeamMember>[] = [
-  {
-    accessorKey: "name",
-    header: "Member",
-    cell: ({ row }) => {
-      const member = row.original;
+        return (
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={removeMemberMutation.isPending}
+            onClick={() =>
+              removeMemberMutation.mutate(
+                { projectId, userId: member.userId },
+                {
+                  onSuccess: () => toast.success("Project member removed"),
+                  onError: (error) =>
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "Unable to remove project member",
+                    ),
+                },
+              )
+            }
+          >
+            {isRemoving ? "Removing..." : "Remove"}
+          </Button>
+        );
+      },
+    }),
+  ]);
 
-      return (
-        <div>
-          <p className="font-medium">{member.name}</p>
-          <p className="text-sm text-gray-500">{member.email}</p>
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "role",
-    header: "Role",
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <Badge>{row.original.status}</Badge>,
-  },
-  {
-    accessorKey: "projects",
-    header: "Projects",
-  },
-];
+  if (membersQuery.isPending) {
+    return <LoadingState message="Loading project members..." />;
+  }
 
-const TeamTable = () => {
-  return <DataTable data={teamMembers} columns={columns} />;
+  if (membersQuery.isError) {
+    return (
+      <ErrorState
+        title="Failed to load project members"
+        description={membersQuery.error.message}
+        onRetry={() => void membersQuery.refetch()}
+      />
+    );
+  }
+
+  if (membersQuery.data.length === 0) {
+    return (
+      <EmptyState
+        iconType="users"
+        title="No project members yet"
+        description="Active members will appear here after they are added to the project."
+      />
+    );
+  }
+
+  return <DataTable data={membersQuery.data} columns={columns} />;
 };
 
 export default TeamTable;

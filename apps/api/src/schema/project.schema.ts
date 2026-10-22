@@ -24,6 +24,16 @@ export const createProjectSchema = z
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 
+export const projectDateRangeSchema = z
+  .object({
+    startDate: z.iso.date("Start Date must be a valid Date"),
+    dueDate: z.iso.date("Due Date must be a valid Date"),
+  })
+  .refine((data) => data.dueDate >= data.startDate, {
+    message: "Due Date must be greater than or equal to Start Date",
+    path: ["dueDate"],
+  });
+
 export const UpdateProjectSchema = z
   .object({
     name: z

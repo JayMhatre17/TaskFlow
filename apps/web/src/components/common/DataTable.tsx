@@ -22,6 +22,7 @@ type DataTableProps<TData extends RowData> = {
 };
 
 const features = tableFeatures({});
+export type DataTableFeatures = typeof features;
 
 const DataTable = <TData extends RowData>({
   columns,

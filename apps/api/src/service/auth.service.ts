@@ -24,6 +24,9 @@ export const login = async (email: string, password: string) => {
   if (!user) {
     throw new ApiError(401, "Invalid email or password");
   }
+  if (user.status !== "ACTIVE") {
+    throw new ApiError(401, "Invalid email or password");
+  }
   const isPasswordValid = await verifypassword(password, user.passwordHash);
 
   if (!isPasswordValid) {

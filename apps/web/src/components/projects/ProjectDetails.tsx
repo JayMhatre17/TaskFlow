@@ -9,6 +9,7 @@ import Link from "next/link";
 import DeleteProjectButton from "./DeleteProjectButton";
 import { Badge } from "../ui/badge";
 import { formatDate } from "@/lib/basicFn";
+import { useProjectTasks } from "@/hooks/queries/useProjectTasks";
 
 const ProjectDetails = ({ id }: { id: number }) => {
   const {
@@ -18,6 +19,14 @@ const ProjectDetails = ({ id }: { id: number }) => {
     error,
     refetch,
   } = useProject(Number(id));
+  const projectTasksQuery = useProjectTasks(id, Boolean(project));
+  const tasks = projectTasksQuery.data ?? [];
+  const completedTaskCount = tasks.filter(
+    (task) => task.status === "COMPLETED",
+  ).length;
+  const taskCount = tasks.length;
+  const progress =
+    taskCount === 0 ? 0 : Math.round((completedTaskCount / taskCount) * 100);
 
   if (isPending) {
     return <LoadingState message="Loading project..." />;
@@ -62,13 +71,21 @@ const ProjectDetails = ({ id }: { id: number }) => {
           <p className="mt-2 text-sm text-gray-500">{project?.description}</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/team?projectId=${project.id}`}>
+            <Button variant="outline" className="cursor-pointer">
+              Team
+            </Button>
+          </Link>
           <Link href={`/projects/${project?.id}/edit`}>
             <Button variant="outline" className="cursor-pointer">
               Edit
             </Button>
           </Link>
-          <DeleteProjectButton projectId={project?.id} />
+          <DeleteProjectButton
+            projectId={project.id}
+            projectName={project.name}
+          />
         </div>
       </div>
 
@@ -77,7 +94,7 @@ const ProjectDetails = ({ id }: { id: number }) => {
         <div className="rounded-xl border bg-white p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold">Project Information</h2>
 
-          <div className="mt-6 grid gap-6 sm:grid-cols-3">
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
             <div>
               <p className="text-sm text-gray-500">Start Date</p>
               <p className="mt-1 font-medium">
@@ -89,11 +106,6 @@ const ProjectDetails = ({ id }: { id: number }) => {
               <p className="text-sm text-gray-500">Due Date</p>
               <p className="mt-1 font-medium">{formatDate(project?.dueDate)}</p>
             </div>
-
-            <div>
-              <p className="text-sm text-gray-500">Manager</p>
-              <p className="mt-1 font-medium">{project?.manager}</p>
-            </div>
           </div>
         </div>
 
@@ -101,31 +113,43 @@ const ProjectDetails = ({ id }: { id: number }) => {
         <div className="rounded-xl border bg-white p-6">
           <h2 className="text-lg font-semibold">Progress</h2>
 
-          <div className="mt-6">
-            <div className="mb-2 flex justify-between text-sm">
-              <span className="text-gray-500">Completion</span>
-              <span className="font-medium">{project?.progress}%</span>
-            </div>
+          {projectTasksQuery.isPending ? (
+            <p className="mt-6 text-sm text-gray-500" role="status">
+              Loading task progress...
+            </p>
+          ) : projectTasksQuery.isError ? (
+            <p className="mt-6 text-sm text-gray-500" role="status">
+              Task progress is unavailable.
+            </p>
+          ) : (
+            <>
+              <div className="mt-6">
+                <div className="mb-2 flex justify-between text-sm">
+                  <span className="text-gray-500">Completion</span>
+                  <span className="font-medium">{progress}%</span>
+                </div>
 
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-black"
-                style={{ width: `${project?.progress}%` }}
-              />
-            </div>
-          </div>
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-black"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-2xl font-bold">{project?.tasks?.completed}</p>
-              <p className="text-sm text-gray-500">Completed</p>
-            </div>
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-2xl font-bold">{completedTaskCount}</p>
+                  <p className="text-sm text-gray-500">Completed</p>
+                </div>
 
-            <div>
-              <p className="text-2xl font-bold">{project?.tasks?.total}</p>
-              <p className="text-sm text-gray-500">Total Tasks</p>
-            </div>
-          </div>
+                <div>
+                  <p className="text-2xl font-bold">{taskCount}</p>
+                  <p className="text-sm text-gray-500">Total Tasks</p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

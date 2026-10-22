@@ -73,4 +73,19 @@ describe("auth service", () => {
       message: "Invalid email or password",
     });
   });
+
+  it.each(["DEACTIVATED", "PENDING_DELETION", "DELETED"] as const)(
+    "should reject login for a %s account",
+    async (status) => {
+      const email = `ineligible-${Date.now()}-${Math.random()}@example.com`;
+      const user = await createUser("Ineligible User", email, "password123");
+      createdUserId = user.id;
+      await db.orm.public.User.where({ id: user.id }).update({ status });
+
+      await expect(login(email, "password123")).rejects.toMatchObject({
+        statusCode: 401,
+        message: "Invalid email or password",
+      });
+    },
+  );
 });

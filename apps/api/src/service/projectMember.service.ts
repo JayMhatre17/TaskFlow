@@ -2,6 +2,47 @@ import { ApiError } from "../errors/api.error";
 import { db } from "../prisma/db";
 import { createNotificationWithClient } from "./notification.service";
 import { getProjectAccess } from "./projectAccess.service";
+import { not, or } from "@prisma/orm-postgres/orm-client";
+
+const PROJECT_MEMBER_SEARCH_LIMIT = 10;
+
+export const searchProjectMemberCandidates = async (
+  projectId: number,
+  query: string,
+  ownerId: number,
+) => {
+  const access = await getProjectAccess(projectId, ownerId);
+
+  if (!access) {
+    throw new ApiError(404, "Project not found");
+  }
+
+  if (access.role !== "OWNER") {
+    throw new ApiError(403, "Only the project owner can search for members");
+  }
+
+  const activeMembers = await db.orm.public.ProjectMember.where({
+    projectId,
+    removedAt: null,
+  }).all();
+  const excludedIds = [access.project.ownerId, ...activeMembers.map(({ userId }) => userId)];
+  const escapedQuery = query.trim().replace(/[\\%_]/g, "\\$&");
+  const searchPattern = `%${escapedQuery}%`;
+
+  const users = await db.orm.public.User.where((user) =>
+    or(
+      user.name.ilike(searchPattern),
+      user.email.ilike(searchPattern),
+    ),
+  )
+    .where({ status: "ACTIVE" })
+    .where((user) => not(user.id.in(excludedIds)))
+    .orderBy((user) => user.name.asc())
+    .limit(PROJECT_MEMBER_SEARCH_LIMIT)
+    .all();
+
+  return users.map(({ id, name, email }) => ({ id, name, email }));
+};
 
 export const getProjectMembers = async (projectId: number, userId: number) => {
   const access = await getProjectAccess(projectId, userId);
@@ -133,9 +174,46 @@ export const removeProjectMember = async (
   }
 
   return db.transaction(async (tx) => {
-    await tx.orm.public.ProjectMember.where({ id: member.id }).update({
-      removedAt: new Date().toISOString(),
+    const removedAt = new Date().toISOString();
+    const removedMember = await tx.orm.public.ProjectMember.where({
+      id: member.id,
+      removedAt: null,
+    }).update({
+      removedAt,
     });
+
+    if (!removedMember) {
+      throw new ApiError(404, "Project member not found");
+    }
+
+    const assignedTasks = await tx.orm.public.Task.where({
+      projectId,
+      assigneeId: userId,
+    }).all();
+
+    for (const task of assignedTasks) {
+      const unassignedTask = await tx.orm.public.Task.where({
+        id: task.id,
+        projectId,
+        assigneeId: userId,
+      }).update({
+        assigneeId: null,
+      });
+
+      if (!unassignedTask) {
+        continue;
+      }
+
+      await tx.orm.public.TaskAssignmentHistory.create({
+        taskId: task.id,
+        previousAssigneeId: userId,
+        newAssigneeId: null,
+        performedById: removedById,
+        action: "UNASSIGNED",
+        reason: "Project member removed",
+      });
+    }
+
     await tx.orm.public.ProjectMembershipHistory.create({
       projectId,
       userId,

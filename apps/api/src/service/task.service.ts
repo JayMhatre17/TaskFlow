@@ -59,15 +59,31 @@ export const getTasks = async (query: TaskQueryInput, userId: number) => {
     };
   }
 
+  const projects = await db.orm.public.Project.where((project) =>
+    or(...uniqueProjectIds.map((projectId) => project.id.eq(projectId))),
+  )
+    .where({ deletedAt: null })
+    .all();
+
+  const activeProjectIds = projects.map((project) => project.id);
+
+  if (activeProjectIds.length === 0) {
+    return {
+      data: [],
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+  }
+
   let taskQuery = db.orm.public.Task.where((task) =>
-    or(...uniqueProjectIds.map((projectId) => task.projectId.eq(projectId))),
+    or(...activeProjectIds.map((projectId) => task.projectId.eq(projectId))),
   );
 
   taskQuery = taskQuery.where({ deletedAt: null });
-
-  const projects = await db.orm.public.Project.where((project) =>
-    or(...uniqueProjectIds.map((projectId) => project.id.eq(projectId))),
-  ).all();
 
   if (query.status) {
     taskQuery = taskQuery.where({
@@ -105,10 +121,9 @@ export const getTasks = async (query: TaskQueryInput, userId: number) => {
   const totalPages = Math.ceil(total.total / query.limit);
 
   const projectMap = new Map(projects.map((project) => [project.id, project]));
+  const assignees = await getTaskAssignees(tasks);
   const tasksWithProjectDetails = tasks.map((task) => ({
-    ...task,
-    status: getTaskStatusLabel(task.status),
-    priority: getTaskPriorityLabel(task.priority),
+    ...mapTaskWithAssignee(task, assignees),
     project: projectMap.get(task.projectId)
       ? {
           id: projectMap.get(task.projectId)!.id,
@@ -151,7 +166,7 @@ export const createTask = async (data: CreateTaskInput, userId: number) => {
     throw new ApiError(404, "Project not found");
   }
 
-  return db.transaction(async (tx) => {
+  const task = await db.transaction(async (tx) => {
     const task = await tx.orm.public.Task.create({
       title: data.title,
       description: data.description,
@@ -170,8 +185,10 @@ export const createTask = async (data: CreateTaskInput, userId: number) => {
       action: "CREATED",
       description: "Created task",
     });
-    return mapTaskFromDb(task);
+    return task;
   });
+
+  return attachAssigneeSummary(task);
 };
 
 export const updateTask = async (
@@ -307,7 +324,7 @@ export const updateTask = async (
     });
   }
 
-  return db.transaction(async (tx) => {
+  const updatedTask = await db.transaction(async (tx) => {
     // Recheck the task's active state as part of the update.
     const updatedTask = await tx.orm.public.Task.where({
       id,
@@ -365,8 +382,10 @@ export const updateTask = async (
       }
     }
 
-    return mapTaskFromDb(updatedTask);
+    return updatedTask;
   });
+
+  return updatedTask ? attachAssigneeSummary(updatedTask) : null;
 };
 
 export const deleteTask = async (id: number, userId: number) => {
@@ -419,7 +438,15 @@ export const getTasksByProjectId = async (
     deletedAt: null,
   }).all();
 
-  return Promise.all(tasks.map((task) => attachProject(task)));
+  const assignees = await getTaskAssignees(tasks);
+
+  return tasks.map((task) => ({
+    ...mapTaskWithAssignee(task, assignees),
+    project: {
+      id: access.project.id,
+      name: access.project.name,
+    },
+  }));
 };
 
 const attachProject = async (task: TaskRecord | null) => {
@@ -430,9 +457,10 @@ const attachProject = async (task: TaskRecord | null) => {
   const project = await db.orm.public.Project.first({
     id: task.projectId,
   });
+  const assignees = await getTaskAssignees([task]);
 
   return {
-    ...mapTaskFromDb(task),
+    ...mapTaskWithAssignee(task, assignees),
     project: project
       ? {
           id: project.id,
@@ -452,6 +480,48 @@ const mapTaskFromDb = (task: TaskRecord) => {
     status: getTaskStatusLabel(task.status),
     priority: getTaskPriorityLabel(task.priority),
   };
+};
+
+type TaskAssigneeSummary = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+const getTaskAssignees = async (tasks: TaskRecord[]) => {
+  const assigneeIds = [
+    ...new Set(
+      tasks.flatMap((task) =>
+        task.assigneeId === null ? [] : [task.assigneeId],
+      ),
+    ),
+  ];
+
+  if (assigneeIds.length === 0) {
+    return new Map<number, TaskAssigneeSummary>();
+  }
+
+  const users = await db.orm.public.User.select("id", "name", "email")
+    .where((user) => user.id.in(assigneeIds))
+    .all();
+
+  return new Map<number, TaskAssigneeSummary>(
+    users.map(({ id, name, email }) => [id, { id, name, email }]),
+  );
+};
+
+const mapTaskWithAssignee = (
+  task: TaskRecord,
+  assignees: Map<number, TaskAssigneeSummary>,
+) => ({
+  ...mapTaskFromDb(task),
+  assignee:
+    task.assigneeId === null ? null : (assignees.get(task.assigneeId) ?? null),
+});
+
+const attachAssigneeSummary = async (task: TaskRecord) => {
+  const assignees = await getTaskAssignees([task]);
+  return mapTaskWithAssignee(task, assignees);
 };
 
 const getOwnedProject = async (projectId: number, userId: number) => {
@@ -497,6 +567,10 @@ export const assignTask = async (
       throw new ApiError(400, "Assignee not found");
     }
 
+    if (assignee.status !== "ACTIVE") {
+      throw new ApiError(400, "Assignee must have an active account");
+    }
+
     const isOwner = project.ownerId === data.assigneeId;
 
     const membership = await db.orm.public.ProjectMember.where({
@@ -517,7 +591,7 @@ export const assignTask = async (
   const newAssigneeId = data.assigneeId;
 
   if (previousAssigneeId === newAssigneeId) {
-    return task;
+    return attachAssigneeSummary(task);
   }
 
   let action: "ASSIGNED" | "REASSIGNED" | "UNASSIGNED";
@@ -530,12 +604,25 @@ export const assignTask = async (
     action = "REASSIGNED";
   }
 
-  return db.transaction(async (tx) => {
-    const updatedTask = await tx.orm.public.Task.where({
-      id: taskId,
-    }).update({
-      assigneeId: newAssigneeId,
-    });
+  const updatedTask = await db.transaction(async (tx) => {
+    const updatePlan = tx.sql.public.task
+      .update({ assigneeId: newAssigneeId })
+      .where((fields, operators) => operators.eq(fields.id, taskId))
+      .where((fields, operators) => operators.eq(fields.deletedAt, null))
+      .where((fields, operators) =>
+        previousAssigneeId === null
+          ? operators.eq(fields.assigneeId, null)
+          : operators.eq(fields.assigneeId, previousAssigneeId),
+      )
+      .returning("id")
+      .build();
+    const updatedRows = await tx.query(updatePlan);
+
+    if (updatedRows.length === 0) {
+      throw new ApiError(409, "Task assignment changed; refresh and try again");
+    }
+
+    const updatedTask = await tx.orm.public.Task.where({ id: taskId }).first();
 
     await tx.orm.public.TaskAssignmentHistory.create({
       taskId,
@@ -571,6 +658,8 @@ export const assignTask = async (
     }
     return updatedTask;
   });
+
+  return updatedTask ? attachAssigneeSummary(updatedTask) : null;
 };
 
 export const restoreTask = async (id: number, userId: number) => {
@@ -580,11 +669,14 @@ export const restoreTask = async (id: number, userId: number) => {
     return false;
   }
 
-  const project = await getOwnedProject(task.projectId, userId);
+  // Restoration is only available to the owner while the parent project is active.
+  const access = await getProjectAccess(task.projectId, userId);
 
-  if (!project) {
+  if (!access || access.role !== "OWNER") {
     return false;
   }
+
+  const project = access.project;
 
   return db.transaction(async (tx) => {
     const restoredTask = await tx.orm.public.Task.where({

@@ -89,7 +89,7 @@ const ProjectFilters = ({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const handleSortChange = (value: string) => {
+  const handleSortChange = (value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
 
     if (!value || value === "default") {

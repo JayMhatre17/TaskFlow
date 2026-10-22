@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "../errors/api.error";
 import {
   getMyNotifications,
+  getUnreadNotificationCount,
   markAllNotificationsAsRead,
   markNotificationAsRead,
 } from "../service/notification.service";
@@ -38,11 +39,9 @@ export const getUnreadNotificationCountController = async (
   next: NextFunction,
 ) => {
   try {
-    const notificationId = parsePositiveId(req.params.id);
-
     const userId = req.user!.id;
 
-    const notification = await markNotificationAsRead(notificationId, userId);
+    const notification = await getUnreadNotificationCount(userId);
 
     return res.status(200).json({ notification });
   } catch (error) {
@@ -61,6 +60,23 @@ export const markAllNotificationsAsReadController = async (
     const updatedCount = await markAllNotificationsAsRead(userId);
 
     return res.status(200).json({ updatedCount });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const markNotificationAsReadController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const notificationId = parsePositiveId(req.params.id);
+    const userId = req.user!.id;
+
+    const notification = await markNotificationAsRead(notificationId, userId);
+
+    return res.status(200).json({ notification });
   } catch (error) {
     return next(error);
   }

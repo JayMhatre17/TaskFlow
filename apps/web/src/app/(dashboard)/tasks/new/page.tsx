@@ -1,13 +1,6 @@
-import CreateTaskForm from "@/components/task/CreateTaskForm";
-import { getProjectOptions   } from "@/lib/api/project.api";
+import CreateTaskFormWithProjects from "@/components/task/CreateTaskFormWithProjects";
 
-export default async function CreateTaskPage() {
-  const projects = await getProjectOptions();
-
-  const projectOptions = projects.map((project) => ({
-    label: project.name,
-    value: String(project.id),
-  }));
+export default function CreateTaskPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -19,7 +12,7 @@ export default async function CreateTaskPage() {
       </div>
 
       <div className="max-w-3xl rounded-xl border bg-white p-6">
-        <CreateTaskForm projectOptions={projectOptions} mode="create" />
+        <CreateTaskFormWithProjects />
       </div>
     </div>
   );

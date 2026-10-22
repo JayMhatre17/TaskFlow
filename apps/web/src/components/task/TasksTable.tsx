@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import DataTable from "../common/DataTable";
+import DataTable, { type DataTableFeatures } from "../common/DataTable";
 import { Task, TaskListResponse } from "@/lib/api/task.api";
 import { formatDate } from "@/lib/basicFn";
 import Link from "next/link";
@@ -60,7 +60,7 @@ const TasksTable = ({ tasks, pagination }: TasksTableProps) => {
       <ArrowDown size={16} />
     );
   };
-  const columns: ColumnDef<any, Task>[] = [
+  const columns: ColumnDef<DataTableFeatures, Task>[] = [
     {
       accessorKey: "title",
       header: () => (
@@ -87,6 +87,11 @@ const TasksTable = ({ tasks, pagination }: TasksTableProps) => {
       cell: ({ row }) => {
         return <p>{row.original.project?.name ?? "Unknown project"}</p>;
       },
+    },
+    {
+      accessorKey: "assignee",
+      header: "Assignee",
+      cell: ({ row }) => <p>{row.original.assignee?.name ?? "Unassigned"}</p>,
     },
     {
       accessorKey: "status",

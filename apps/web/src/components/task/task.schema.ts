@@ -5,6 +5,7 @@ export const tskSchema = z
     title: z.string().trim().min(1, "Task title is required"),
     description: z.string().optional(),
     projectId: z.string().min(1, "Project is required"),
+    assigneeId: z.string(),
     status: z.enum(["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED"], {
       message: "Invalid task status",
     }),

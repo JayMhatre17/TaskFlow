@@ -1,15 +1,21 @@
-import TeamFilters from "@/components/teams/TeamFilters";
-import TeamHeader from "@/components/teams/TeamHeader";
-import TeamPagination from "@/components/teams/TeamPagination";
-import TeamTable from "@/components/teams/TeamTable";
+import TeamContent from "@/components/teams/TeamContent";
 
-export default function TeamPage() {
+export default async function TeamPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ projectId?: string | string[] }>;
+}) {
+  const { projectId } = await searchParams;
+  const projectIdValue = Array.isArray(projectId) ? projectId[0] : projectId;
+  const parsedProjectId = Number(projectIdValue);
+
   return (
-    <div className="space-y-6">
-      <TeamHeader />
-      <TeamFilters />
-      <TeamTable />
-      <TeamPagination />
-    </div>
+    <TeamContent
+      initialProjectId={
+        Number.isSafeInteger(parsedProjectId) && parsedProjectId > 0
+          ? parsedProjectId
+          : undefined
+      }
+    />
   );
 }

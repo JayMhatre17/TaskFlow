@@ -10,7 +10,12 @@ import { requireAuth } from "./middlewares/require-auth.middleware";
 import notificationRouter from "./routes/notification.routes";
 const app = express();
 
-app.use(cors());
+const webOrigin = process.env.WEB_ORIGIN;
+app.use(
+  webOrigin
+    ? cors({ origin: webOrigin ?? "http://localhost:3000", credentials: true })
+    : cors(),
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -18,6 +23,6 @@ app.use("/api/health", healthRoutes);
 app.use("/api/projects", requireAuth, projectsRoutes);
 app.use("/api/tasks", requireAuth, tasksRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/notifications", notificationRouter);
+app.use("/api/notifications", notificationRouter);
 app.use(errorMiddleware);
 export default app;

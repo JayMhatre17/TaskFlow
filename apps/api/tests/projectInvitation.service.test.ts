@@ -283,6 +283,40 @@ describe("ProjectInvitation service", () => {
 
     expect(history).not.toBeNull();
   });
+  it("should reject an invitation for a soft-deleted project without creating membership", async () => {
+    const owner = await createTestUser("deleted-project-owner");
+    const recipient = await createTestUser("deleted-project-recipient");
+
+    const project = await createTestProject(owner.id);
+
+    const invitationResult = await createProjectInvitation(
+      project.id,
+      recipient.email,
+      owner.id,
+    );
+
+    await db.orm.public.Project.where({ id: project.id }).update({
+      deletedAt: new Date().toISOString(),
+    });
+
+    await expect(
+      acceptProjectInvitation(invitationResult.token, recipient.id),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Project not found",
+    });
+
+    const membership = await db.orm.public.ProjectMember.where({
+      projectId: project.id,
+      userId: recipient.id,
+    }).first();
+    const invitation = await db.orm.public.ProjectInvitation.where({
+      id: invitationResult.invitation.id,
+    }).first();
+
+    expect(membership).toBeNull();
+    expect(invitation?.status).toBe("PENDING");
+  });
   it("should reject an expired invitation", async () => {
     const owner = await createTestUser("expired-owner");
     const recipient = await createTestUser("expired-recipient");
@@ -614,6 +648,72 @@ describe("ProjectInvitation service", () => {
       message: "Invitation is no longer pending",
     });
   });
+  it("should reject an expired invitation without changing its pending status", async () => {
+    const owner = await createTestUser("reject-expired-owner");
+    const recipient = await createTestUser("reject-expired-recipient");
+    const project = await createTestProject(owner.id);
+    const invitationResult = await createProjectInvitation(
+      project.id,
+      recipient.email,
+      owner.id,
+    );
+
+    await db.orm.public.ProjectInvitation.where({
+      id: invitationResult.invitation.id,
+    }).update({
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    await expect(
+      rejectProjectInvitation(invitationResult.token, recipient.id),
+    ).rejects.toMatchObject({
+      statusCode: 410,
+      message: "Invitation has expired",
+    });
+
+    const invitation = await db.orm.public.ProjectInvitation.where({
+      id: invitationResult.invitation.id,
+    }).first();
+    expect(invitation?.status).toBe("PENDING");
+  });
+  it("allows only one concurrent accept or reject action", async () => {
+    const owner = await createTestUser("concurrent-action-owner");
+    const recipient = await createTestUser("concurrent-action-recipient");
+    const project = await createTestProject(owner.id);
+    const invitationResult = await createProjectInvitation(
+      project.id,
+      recipient.email,
+      owner.id,
+    );
+
+    const results = await Promise.allSettled([
+      acceptProjectInvitation(invitationResult.token, recipient.id),
+      rejectProjectInvitation(invitationResult.token, recipient.id),
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(
+      1,
+    );
+    const rejectedResult = results.find(
+      (result) => result.status === "rejected",
+    );
+    expect(rejectedResult).toMatchObject({
+      status: "rejected",
+      reason: { statusCode: 409 },
+    });
+
+    const invitation = await db.orm.public.ProjectInvitation.where({
+      id: invitationResult.invitation.id,
+    }).first();
+    const membership = await db.orm.public.ProjectMember.where({
+      projectId: project.id,
+      userId: recipient.id,
+      removedAt: null,
+    }).first();
+
+    expect(["ACCEPTED", "REJECTED"]).toContain(invitation?.status);
+    expect(Boolean(membership)).toBe(invitation?.status === "ACCEPTED");
+  });
   it("should reject when a different registered user tries to reject the invitation", async () => {
     const owner = await createTestUser("reject-wrong-owner");
     const recipient = await createTestUser("reject-wrong-recipient");
@@ -672,6 +772,13 @@ describe("ProjectInvitation service", () => {
     });
 
     expect(result?.rejectedAt).not.toBeNull();
+
+    await expect(
+      rejectProjectInvitation(invitationResult.token, recipient.id),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Invitation is no longer pending",
+    });
   });
   it("should reject when the user's email does not match an unregistered invitation", async () => {
     const owner = await createTestUser("reject-email-owner");

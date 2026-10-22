@@ -7,13 +7,22 @@ import {
   deleteTestProject,
 } from "./helpers/project.helpers";
 import { createTestTask } from "./helpers/tasks.helper";
-import { authenticatedRequest, setupTestAuth } from "./helpers/auth.helper";
+import {
+  authenticatedRequest,
+  authenticatedRequestWithSession,
+  createAuthenticatedAgent,
+  setupTestAuth,
+} from "./helpers/auth.helper";
+import { Temporal } from "@js-temporal/polyfill";
+import { db } from "../src/prisma/db";
+import { createUser } from "../src/service/auth.service";
 
 describe("GET /api/projects", () => {
   const createdProjectIds: number[] = [];
+  let authenticatedSessionId: string;
 
   beforeAll(async () => {
-    await setupTestAuth();
+    authenticatedSessionId = await setupTestAuth();
   });
 
   afterEach(async () => {
@@ -60,6 +69,114 @@ describe("GET /api/projects", () => {
         }),
       ]),
     );
+  });
+  it("lists owned and active member projects once, excluding inaccessible and soft-deleted projects", async () => {
+    const session = await db.orm.public.Session.where({
+      id: authenticatedSessionId,
+    }).first();
+    const listUserId = session!.userId;
+    const owner = await createUser(
+      "Project List Owner",
+      `project-list-owner-${Date.now()}@example.com`,
+      "password123",
+    );
+    const inaccessibleOwner = await createUser(
+      "Project List Inaccessible Owner",
+      `project-list-inaccessible-${Date.now()}@example.com`,
+      "password123",
+    );
+    const deletedOwner = await createUser(
+      "Project List Deleted Owner",
+      `project-list-deleted-${Date.now()}@example.com`,
+      "password123",
+    );
+    const marker = `[TEST] Project list access ${Date.now()}`;
+    const projectIds: number[] = [];
+
+    const createProject = async (ownerId: number, name: string) => {
+      const project = await db.orm.public.Project.create({
+        name,
+        description: "Project list access test",
+        status: "Active",
+        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+        dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+        ownerId,
+      });
+      projectIds.push(project.id);
+      return project;
+    };
+
+    try {
+      const ownedProject = await createProject(listUserId, `${marker} owned`);
+      const memberProject = await createProject(owner.id, `${marker} member`);
+      const inaccessibleProject = await createProject(
+        inaccessibleOwner.id,
+        `${marker} inaccessible`,
+      );
+      const deletedProject = await createProject(
+        deletedOwner.id,
+        `${marker} deleted`,
+      );
+
+      await db.orm.public.ProjectMember.create({
+        projectId: ownedProject.id,
+        userId: listUserId,
+        addedById: listUserId,
+        joinedAt: new Date().toISOString(),
+        removedAt: null,
+      });
+      await db.orm.public.ProjectMember.create({
+        projectId: memberProject.id,
+        userId: listUserId,
+        addedById: owner.id,
+        joinedAt: new Date().toISOString(),
+        removedAt: null,
+      });
+      await db.orm.public.ProjectMember.create({
+        projectId: inaccessibleProject.id,
+        userId: listUserId,
+        addedById: inaccessibleOwner.id,
+        joinedAt: new Date().toISOString(),
+        removedAt: new Date().toISOString(),
+      });
+      await db.orm.public.ProjectMember.create({
+        projectId: deletedProject.id,
+        userId: listUserId,
+        addedById: deletedOwner.id,
+        joinedAt: new Date().toISOString(),
+        removedAt: null,
+      });
+      await db.orm.public.Project.where({ id: deletedProject.id }).update({
+        deletedAt: new Date().toISOString(),
+      });
+
+      const response = await authenticatedRequest().get("/api/projects").query({
+        search: marker,
+        limit: 100,
+      });
+
+      expect(response.status).toBe(200);
+      const returnedIds = response.body.data.map(
+        (project: { id: number }) => project.id,
+      );
+      expect(returnedIds).toContain(ownedProject.id);
+      expect(returnedIds).toContain(memberProject.id);
+      expect(returnedIds).not.toContain(inaccessibleProject.id);
+      expect(returnedIds).not.toContain(deletedProject.id);
+      expect(returnedIds).toHaveLength(2);
+      expect(new Set(returnedIds).size).toBe(returnedIds.length);
+      expect(response.body.pagination.total).toBe(2);
+    } finally {
+      for (const projectId of projectIds) {
+        await db.orm.public.ProjectMember.where({
+          projectId,
+        }).deleteAll();
+        await db.orm.public.Project.where({ id: projectId }).delete();
+      }
+      for (const userId of [owner.id, inaccessibleOwner.id, deletedOwner.id]) {
+        await db.orm.public.User.where({ id: userId }).delete();
+      }
+    }
   });
   it("should return projects with the requested pagination", async () => {
     const project = await createTestProject({
@@ -1013,6 +1130,73 @@ describe("GET /api/projects", () => {
       });
     });
 
+    it("allows owners and active members but denies removed members and other users", async () => {
+      const owner = await createAuthenticatedAgent();
+      const member = await createAuthenticatedAgent();
+      const otherUser = await createAuthenticatedAgent();
+      const project = await db.orm.public.Project.create({
+        name: `[TEST] Project access ${Date.now()}`,
+        description: "Project access test",
+        status: "Active",
+        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+        dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+        ownerId: owner.user.id,
+      });
+
+      try {
+        const ownerResponse = await authenticatedRequestWithSession(
+          owner.session.id,
+        ).get(
+          `/api/projects/${project.id}`,
+        );
+        expect(ownerResponse.status).toBe(200);
+        expect(ownerResponse.body.id).toBe(project.id);
+
+        const membership = await db.orm.public.ProjectMember.create({
+          projectId: project.id,
+          userId: member.user.id,
+          addedById: owner.user.id,
+          joinedAt: new Date().toISOString(),
+          removedAt: null,
+        });
+
+        const activeMemberResponse = await authenticatedRequestWithSession(
+          member.session.id,
+        ).get(
+          `/api/projects/${project.id}`,
+        );
+        expect(activeMemberResponse.status).toBe(200);
+        expect(activeMemberResponse.body.id).toBe(project.id);
+
+        await db.orm.public.ProjectMember.where({ id: membership.id }).update({
+          removedAt: new Date().toISOString(),
+        });
+
+        const removedMemberResponse = await authenticatedRequestWithSession(
+          member.session.id,
+        ).get(
+          `/api/projects/${project.id}`,
+        );
+        expect(removedMemberResponse.status).toBe(404);
+        expect(removedMemberResponse.body).toHaveProperty(
+          "message",
+          "Project not found",
+        );
+
+        const otherUserResponse = await authenticatedRequestWithSession(
+          otherUser.session.id,
+        ).get(
+          `/api/projects/${project.id}`,
+        );
+        expect(otherUserResponse.status).toBe(404);
+      } finally {
+        await db.orm.public.Project.where({ id: project.id }).delete();
+        await owner.cleanup();
+        await member.cleanup();
+        await otherUser.cleanup();
+      }
+    });
+
     it("should return 404 when the project does not exist", async () => {
       const response = await authenticatedRequest().get(
         "/api/projects/999999999",
@@ -1219,6 +1403,20 @@ describe("GET /api/projects", () => {
 
     expect(response.body).toHaveProperty("message", "Validation failed");
 
+    expect(response.body.errors).toHaveProperty("dueDate");
+  });
+  it("should reject a dueDate earlier than startDate during creation", async () => {
+    const response = await authenticatedRequest()
+      .post("/api/projects")
+      .send({
+        name: `[TEST] Invalid Project Date Range ${Date.now()}`,
+        status: "Active",
+        startDate: "2026-12-31",
+        dueDate: "2026-01-01",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("message", "Validation failed");
     expect(response.body.errors).toHaveProperty("dueDate");
   });
   it("should return validation errors for multiple missing fields", async () => {
@@ -1447,6 +1645,54 @@ describe("PATCH /api/projects/:id", () => {
       description: project.description,
       status: project.status,
     });
+  });
+  it("should reject a partial startDate update later than the stored dueDate", async () => {
+    const project = await createTestProject({
+      name: `[TEST] Invalid Partial Start Date ${Date.now()}`,
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+    createdProjectIds.push(project.id);
+
+    const response = await authenticatedRequest()
+      .patch(`/api/projects/${project.id}`)
+      .send({ startDate: "2027-01-01" });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("message", "Validation failed");
+    expect(response.body.errors).toHaveProperty("dueDate");
+  });
+  it("should reject a partial dueDate update earlier than the stored startDate", async () => {
+    const project = await createTestProject({
+      name: `[TEST] Invalid Partial Due Date ${Date.now()}`,
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+    createdProjectIds.push(project.id);
+
+    const response = await authenticatedRequest()
+      .patch(`/api/projects/${project.id}`)
+      .send({ dueDate: "2025-12-31" });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty("message", "Validation failed");
+    expect(response.body.errors).toHaveProperty("dueDate");
+  });
+  it("should allow a valid partial date update that preserves the date range", async () => {
+    const project = await createTestProject({
+      name: `[TEST] Valid Partial Date Update ${Date.now()}`,
+      startDate: "2026-01-01",
+      dueDate: "2026-12-31",
+    });
+    createdProjectIds.push(project.id);
+
+    const response = await authenticatedRequest()
+      .patch(`/api/projects/${project.id}`)
+      .send({ startDate: "2026-02-01" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.startDate).toContain("2026-02-01");
+    expect(response.body.dueDate).toContain("2026-12-31");
   });
   it("should return 404 when updating a nonexistent project", async () => {
     const response = await authenticatedRequest()

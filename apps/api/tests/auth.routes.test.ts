@@ -79,6 +79,23 @@ describe("POST /api/auth/login", () => {
     expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
+  it.each(["DEACTIVATED", "PENDING_DELETION"] as const)(
+    "should reject login for a %s account",
+    async (status) => {
+      const user = await createTestUser();
+      await db.orm.public.User.where({ id: user.id }).update({ status });
+
+      const response = await request(app).post("/api/auth/login").send({
+        email: user.email,
+        password: "password123",
+      });
+
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe("Invalid email or password");
+      expect(response.headers["set-cookie"]).toBeUndefined();
+    },
+  );
+
   it("should reject an unknown email", async () => {
     const response = await request(app).post("/api/auth/login").send({
       email: "unknown@example.com",

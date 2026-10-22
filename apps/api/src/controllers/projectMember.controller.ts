@@ -4,7 +4,40 @@ import {
   getProjectMembers,
   removeProjectMember,
 } from "../service/projectMember.service";
-import { addProjectMemberSchema } from "../schema/projectMember.schema";
+import {
+  addProjectMemberSchema,
+  searchProjectMemberCandidatesSchema,
+} from "../schema/projectMember.schema";
+import { ApiError } from "../errors/api.error";
+import { searchProjectMemberCandidates } from "../service/projectMember.service";
+
+export const searchProjectMemberCandidatesController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = Number(req.params.projectId);
+    if (!Number.isSafeInteger(projectId) || projectId <= 0) {
+      throw new ApiError(400, "Invalid project ID");
+    }
+
+    const result = searchProjectMemberCandidatesSchema.safeParse(req.query);
+    if (!result.success) {
+      throw new ApiError(400, "Invalid member search query");
+    }
+
+    const users = await searchProjectMemberCandidates(
+      projectId,
+      result.data.q,
+      req.user!.id,
+    );
+
+    return res.status(200).json({ users });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 export const getProjectMembersController = async (
   req: Request,

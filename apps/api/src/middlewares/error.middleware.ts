@@ -8,7 +8,6 @@ export const errorMiddleware = (
   res: Response,
   _next: NextFunction,
 ) => {
-  console.error(error);
   if (error instanceof ZodError) {
     res.status(400).json({
       message: "Validation failed",
@@ -23,8 +22,9 @@ export const errorMiddleware = (
     return;
   }
 
+  console.error(error);
   res.status(500).json({
     message: "Internal Server Error",
-    error: error instanceof Error ? error.message : error,
+    error: "An unexpected error occurred",
   });
 };

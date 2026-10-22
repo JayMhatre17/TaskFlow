@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from "express";
+import { Temporal } from "@js-temporal/polyfill";
 import {
   createProjectSchema,
+  projectDateRangeSchema,
   projectQuerySchema,
   UpdateProjectSchema,
 } from "../schema/project.schema";
@@ -114,6 +116,26 @@ export const updateProjectController = async (
         message: "Project not found",
       });
     }
+
+    const effectiveDates = projectDateRangeSchema.safeParse({
+      startDate:
+        result.data.startDate ??
+        Temporal.Instant.from(String(existingProject.startDate))
+          .toString()
+          .slice(0, 10),
+      dueDate:
+        result.data.dueDate ??
+        Temporal.Instant.from(String(existingProject.dueDate))
+          .toString()
+          .slice(0, 10),
+    });
+    if (!effectiveDates.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: effectiveDates.error.flatten().fieldErrors,
+      });
+    }
+
     const project = await updateProject(id, result.data, req.user!.id);
 
     return res.json(project);

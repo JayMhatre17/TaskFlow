@@ -22,7 +22,7 @@ export const requireAuth = async (
 
     const user = await db.orm.public.User.where({ id: session.userId }).first();
 
-     if (!user) {
+     if (!user || user.status !== "ACTIVE") {
        throw new ApiError(401, "Invalid or expired session");
      }
 

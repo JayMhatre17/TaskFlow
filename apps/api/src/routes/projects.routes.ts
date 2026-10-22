@@ -13,10 +13,12 @@ import {
   addProjectMemberController,
   getProjectMembersController,
   removeProjectMemberController,
+  searchProjectMemberCandidatesController,
 } from "../controllers/projectMember.controller";
 import {
   cancelProjectInvitationController,
   createProjectInvitationController,
+  getProjectInvitationsForProjectController,
   getMyProjectInvitationsController,
   projectInvitationActionController,
 } from "../controllers/projectInvitation.controller";
@@ -40,10 +42,18 @@ router.delete("/:id", deleteProjectController);
 router.get("/:projectId/tasks", getTasksByProjectController);
 
 router.get("/:projectId/members", getProjectMembersController);
+router.get(
+  "/:projectId/members/search",
+  searchProjectMemberCandidatesController,
+);
 router.post("/:projectId/members", addProjectMemberController);
 router.delete("/:projectId/members/:userId", removeProjectMemberController);
 
 router.post("/:projectId/invitations", createProjectInvitationController);
+router.get(
+  "/:projectId/invitations",
+  getProjectInvitationsForProjectController,
+);
 
 router.post(
   "/:projectId/invitations/:invitationId/cancel",

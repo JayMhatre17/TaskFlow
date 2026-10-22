@@ -1,10 +1,20 @@
 import z from "zod";
 
-export const teamMemberSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  role: z.enum(["Admin", "Manager", "Developer", "Designer"]),
-  status: z.enum(["Active", "Inactive"]),
+export const addProjectMemberSchema = z.object({
+  userId: z
+    .string()
+    .trim()
+    .regex(/^[1-9]\d*$/, "Enter a valid existing user ID"),
 });
 
-export type TeamMemberFormValues = z.infer<typeof teamMemberSchema>;
+export const createProjectInvitationSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address").max(254),
+});
+
+export type AddProjectMemberFormValues = z.infer<
+  typeof addProjectMemberSchema
+>;
+
+export type CreateProjectInvitationFormValues = z.infer<
+  typeof createProjectInvitationSchema
+>;

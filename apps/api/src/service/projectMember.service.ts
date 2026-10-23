@@ -55,22 +55,25 @@ export const getProjectMembers = async (projectId: number, userId: number) => {
     removedAt: null,
   }).all();
 
-  const result = await Promise.all(
-    members.map(async (member) => {
-      const user = await db.orm.public.User.where({
-        id: member.userId,
-      }).first();
+  const memberIds = [...new Set(members.map((member) => member.userId))];
+  const users = memberIds.length
+    ? await db.orm.public.User.select("id", "name", "email", "status")
+        .where((user) => user.id.in(memberIds))
+        .all()
+    : [];
+  const usersById = new Map(users.map((user) => [user.id, user]));
 
-      return {
-        userId: member.userId,
-        name: user?.name,
-        email: user?.email,
-        joinedAt: member.joinedAt,
-      };
-    }),
-  );
+  return members.map((member) => {
+    const user = usersById.get(member.userId);
+    const identityAvailable = user && user.status !== "DELETED";
 
-  return result;
+    return {
+      userId: member.userId,
+      name: identityAvailable ? user.name : undefined,
+      email: identityAvailable ? user.email : undefined,
+      joinedAt: member.joinedAt,
+    };
+  });
 };
 
 export const addProjectMember = async (

@@ -7,6 +7,51 @@ import {
 } from "../schema/taskComment.schema";
 import { getProjectAccess } from "./projectAccess.service";
 
+type TaskCommentRecord = Awaited<
+  ReturnType<typeof db.orm.public.TaskComment.all>
+>[number];
+
+type TaskCommentAuthor = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+const attachCommentAuthors = async (comments: TaskCommentRecord[]) => {
+  const authorIds = [
+    ...new Set(
+      comments.flatMap((comment) =>
+        comment.authorId === null ? [] : [comment.authorId],
+      ),
+    ),
+  ];
+
+  if (authorIds.length === 0) {
+    return comments.map((comment) => ({ ...comment, author: null }));
+  }
+
+  const users = await db.orm.public.User.select(
+    "id",
+    "name",
+    "email",
+    "status",
+  )
+    .where((user) => user.id.in(authorIds))
+    .all();
+
+  const authors = new Map<number, TaskCommentAuthor>(
+    users
+      .filter((user) => user.status !== "DELETED")
+      .map(({ id, name, email }) => [id, { id, name, email }]),
+  );
+
+  return comments.map((comment) => ({
+    ...comment,
+    author:
+      comment.authorId === null ? null : (authors.get(comment.authorId) ?? null),
+  }));
+};
+
 export const getAccessibleTask = async (taskId: number, userId: number) => {
   const task = await db.orm.public.Task.where({
     id: taskId,
@@ -28,10 +73,12 @@ export const getAccessibleTask = async (taskId: number, userId: number) => {
 export const getTaskComments = async (taskId: number, userId: number) => {
   await getAccessibleTask(taskId, userId);
 
-  return db.orm.public.TaskComment.where({
+  const comments = await db.orm.public.TaskComment.where({
     taskId,
     deletedAt: null,
   }).all();
+
+  return attachCommentAuthors(comments);
 };
 
 export const createTaskComment = async (
@@ -41,7 +88,7 @@ export const createTaskComment = async (
 ) => {
   await getAccessibleTask(taskId, userId);
 
-  return db.transaction(async (tx) => {
+  const comment = await db.transaction(async (tx) => {
     const comment = await tx.orm.public.TaskComment.create({
       taskId,
       authorId: userId,
@@ -58,6 +105,8 @@ export const createTaskComment = async (
 
     return comment;
   });
+
+  return (await attachCommentAuthors([comment]))[0];
 };
 
 export const updateTaskComment = async (
@@ -80,7 +129,7 @@ export const updateTaskComment = async (
     throw new ApiError(403, "You can only edit your own comments");
   }
 
-  return db.transaction(async (tx) => {
+  const updatedComment = await db.transaction(async (tx) => {
     const updatedComment = await tx.orm.public.TaskComment.where({
       id: commentId,
       deletedAt: null,
@@ -103,6 +152,10 @@ export const updateTaskComment = async (
 
     return updatedComment;
   });
+
+  return updatedComment
+    ? (await attachCommentAuthors([updatedComment]))[0]
+    : null;
 };
 
 export const deleteTaskComment = async (commentId: number, userId: number) => {

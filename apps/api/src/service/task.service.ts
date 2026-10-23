@@ -142,6 +142,39 @@ export const getTasks = async (query: TaskQueryInput, userId: number) => {
   };
 };
 
+export const getDeletedTasks = async (userId: number) => {
+  const projects = await db.orm.public.Project.where({ ownerId: userId }).all();
+  if (projects.length === 0) return [];
+
+  const projectMap = new Map(
+    projects.map((project) => [project.id, project]),
+  );
+  const allTasks = await db.orm.public.Task.where((task) =>
+    task.projectId.in(projects.map((project) => project.id)),
+  ).all();
+  const deletedTasks = allTasks
+    .filter((task) => task.deletedAt !== null)
+    .sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)));
+  return deletedTasks.map((task) => {
+    const project = projectMap.get(task.projectId)!;
+    const safeTask = mapTaskFromDb(task)!;
+    return {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: safeTask.status,
+      priority: safeTask.priority,
+      dueDate: task.dueDate,
+      deletedAt: task.deletedAt,
+      project: {
+        id: project.id,
+        name: project.name,
+        deletedAt: project.deletedAt,
+      },
+    };
+  });
+};
+
 export const getTaskById = async (id: number, userId: number) => {
   const tasks = await db.orm.public.Task.where({
     id,
@@ -501,12 +534,19 @@ const getTaskAssignees = async (tasks: TaskRecord[]) => {
     return new Map<number, TaskAssigneeSummary>();
   }
 
-  const users = await db.orm.public.User.select("id", "name", "email")
+  const users = await db.orm.public.User.select(
+    "id",
+    "name",
+    "email",
+    "status",
+  )
     .where((user) => user.id.in(assigneeIds))
     .all();
 
   return new Map<number, TaskAssigneeSummary>(
-    users.map(({ id, name, email }) => [id, { id, name, email }]),
+    users
+      .filter((user) => user.status !== "DELETED")
+      .map(({ id, name, email }) => [id, { id, name, email }]),
   );
 };
 
@@ -719,7 +759,33 @@ export const getTaskActivities = async (taskId: number, userId: number) => {
     taskId,
   }).all();
 
-  return activities.sort((a, b) =>
+  const actorIds = [
+    ...new Set(
+      activities.flatMap((activity) =>
+        activity.actorId === null ? [] : [activity.actorId],
+      ),
+    ),
+  ];
+  const actors = actorIds.length
+    ? await db.orm.public.User.select("id", "name", "email", "status")
+        .where((user) => user.id.in(actorIds))
+        .all()
+    : [];
+  const actorSummaries = new Map(
+    actors
+      .filter((actor) => actor.status !== "DELETED")
+      .map(({ id, name, email }) => [id, { id, name, email }]),
+  );
+
+  return activities
+    .map((activity) => ({
+      ...activity,
+      actor:
+        activity.actorId === null
+          ? null
+          : (actorSummaries.get(activity.actorId) ?? null),
+    }))
+    .sort((a, b) =>
     Temporal.Instant.compare(
       Temporal.Instant.from(b.createdAt),
       Temporal.Instant.from(a.createdAt),

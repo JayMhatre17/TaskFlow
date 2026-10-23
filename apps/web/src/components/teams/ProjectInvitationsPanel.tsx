@@ -59,7 +59,7 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
   };
 
   return (
-    <section className="space-y-5 rounded-xl border bg-white p-6">
+    <section className="min-w-0 space-y-5 rounded-xl border bg-white p-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">
           Pending invitations
@@ -115,9 +115,9 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
           <label htmlFor="invitation-link" className="text-sm font-medium">
             Shareable invitation link
           </label>
-          <div className="flex gap-2">
-            <Input id="invitation-link" readOnly value={shareLink} />
-            <Button type="button" variant="outline" onClick={copyShareLink}>
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+            <Input id="invitation-link" className="min-w-0 flex-1" readOnly value={shareLink} />
+            <Button type="button" variant="outline" onClick={copyShareLink} className="shrink-0">
               Copy
             </Button>
           </div>
@@ -154,8 +154,8 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
                 key={invitation.id}
                 className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div>
-                  <p className="font-medium">{invitation.email}</p>
+                <div className="min-w-0">
+                  <p className="break-all font-medium">{invitation.email}</p>
                   <p className="text-sm text-gray-500">
                     Expires {new Date(invitation.expiresAt).toLocaleDateString()}
                   </p>

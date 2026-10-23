@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProject } from "@/lib/api/project.api";
-import ProjectForm from "@/components/projects/ProjectForm";
+import ProjectEditContent from "@/components/projects/ProjectEditContent";
 
 export default async function EditProjectPage({
   params,
@@ -8,28 +7,19 @@ export default async function EditProjectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
   const projectId = Number(id);
 
-  if (!Number.isInteger(projectId)) {
+  if (!Number.isSafeInteger(projectId) || projectId <= 0) {
     notFound();
   }
 
-  const project = await getProject(projectId);
-
-  const defaultValues = {
-    name: project?.name,
-    description: project?.description ?? "",
-    status: project?.status,
-    startDate: project?.startDate.slice(0, 10),
-    dueDate: project?.dueDate.slice(0, 10),
-  };
-
   return (
-    <ProjectForm
-      mode="edit"
-      projectId={project.id}
-      defaultValues={defaultValues}
-    />
+    <div className="mx-auto min-w-0 w-full max-w-3xl space-y-6">
+      <div>
+        <h1 className="break-words text-2xl font-semibold">Edit Project</h1>
+        <p className="text-muted-foreground">Update the project details.</p>
+      </div>
+      <ProjectEditContent projectId={projectId} />
+    </div>
   );
 }

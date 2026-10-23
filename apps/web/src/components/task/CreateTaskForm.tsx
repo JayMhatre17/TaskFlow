@@ -17,6 +17,7 @@ import { useUpdateTask } from "@/hooks/mutation/useUpdateTask";
 import { useAssignTask } from "@/hooks/mutation/useAssignTask";
 import { useProjectMembers } from "@/hooks/queries/useProjectMembers";
 import useProject from "@/hooks/queries/useProject";
+import { formatUserOptionLabel } from "@/lib/user-display";
 
 type TaskFormProps = {
   mode: "create" | "edit";
@@ -114,16 +115,21 @@ const TaskForm = ({
   const assigneeOptions = [
     { label: "Unassigned", value: "" },
     ...(projectQuery.data
-      ? [{ label: "Project owner", value: String(projectQuery.data.ownerId) }]
+      ? [
+          {
+            label: formatUserOptionLabel(projectQuery.data.owner),
+            value: String(projectQuery.data.ownerId),
+          },
+        ]
       : []),
     ...(membersQuery.data ?? [])
       .filter((member) => member.userId !== projectQuery.data?.ownerId)
-      .map((member) => ({
-        label: member.name
-          ? `${member.name}${member.email ? ` (${member.email})` : ""}`
-          : member.email ?? `User ${member.userId}`,
-        value: String(member.userId),
-      })),
+      .map((member) => {
+        return {
+          label: formatUserOptionLabel(member),
+          value: String(member.userId),
+        };
+      }),
   ];
 
   const {

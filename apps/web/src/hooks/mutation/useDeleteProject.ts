@@ -22,6 +22,7 @@ export const useDeleteProject = () => {
       queryClient.invalidateQueries({
         queryKey: ["projects"],
       });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCurrentUser } from "@/hooks/queries/useAuth";
 import { ApiError } from "@/lib/api/client";
+import { getProjectEditLoginPath } from "@/lib/auth-redirect";
 import ErrorState from "@/components/states/ErrorState";
 import LoadingState from "@/components/states/LoadingState";
 
@@ -13,6 +14,7 @@ type DashboardAuthGateProps = {
 
 const DashboardAuthGate = ({ children }: DashboardAuthGateProps) => {
   const router = useRouter();
+  const pathname = usePathname();
   const currentUserQuery = useCurrentUser();
   const isUnauthenticated =
     currentUserQuery.error instanceof ApiError &&
@@ -20,9 +22,13 @@ const DashboardAuthGate = ({ children }: DashboardAuthGateProps) => {
 
   useEffect(() => {
     if (isUnauthenticated) {
-      router.replace("/login");
+      const projectEditMatch = pathname?.match(/^\/projects\/([1-9]\d*)\/edit$/);
+      const loginPath = projectEditMatch
+        ? getProjectEditLoginPath(Number(projectEditMatch[1]))
+        : "/login";
+      router.replace(loginPath);
     }
-  }, [isUnauthenticated, router]);
+  }, [isUnauthenticated, pathname, router]);
 
   if (isUnauthenticated) {
     return <LoadingState fullHeight message="Redirecting to sign in..." />;

@@ -11,6 +11,12 @@ export const getInvitationLoginPath = (returnTo: string) => {
   return `/login?${search.toString()}`;
 };
 
+export const getProjectEditLoginPath = (projectId: number) => {
+  const returnTo = `/projects/${projectId}/edit`;
+  const search = new URLSearchParams({ returnTo });
+  return `/login?${search.toString()}`;
+};
+
 export const getSafePostLoginPath = (returnTo: string | null) => {
   if (
     !returnTo ||
@@ -26,14 +32,20 @@ export const getSafePostLoginPath = (returnTo: string | null) => {
     const keys = [...destination.searchParams.keys()];
     const tokens = destination.searchParams.getAll("token");
 
+    const isInvitationPath =
+      destination.pathname === INVITATION_ACCEPTANCE_PATH &&
+      keys.length === 1 &&
+      keys[0] === "token" &&
+      tokens.length === 1 &&
+      INVITATION_TOKEN_PATTERN.test(tokens[0]);
+    const isProjectEditPath =
+      /^\/projects\/[1-9]\d*\/edit$/.test(destination.pathname) &&
+      keys.length === 0;
+
     if (
       destination.origin !== "https://taskflow.invalid" ||
-      destination.pathname !== INVITATION_ACCEPTANCE_PATH ||
       destination.hash ||
-      keys.length !== 1 ||
-      keys[0] !== "token" ||
-      tokens.length !== 1 ||
-      !INVITATION_TOKEN_PATTERN.test(tokens[0])
+      (!isInvitationPath && !isProjectEditPath)
     ) {
       return "/dashboard";
     }

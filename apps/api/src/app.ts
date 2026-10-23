@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.routes";
 import cookieParser from "cookie-parser";
 import { requireAuth } from "./middlewares/require-auth.middleware";
 import notificationRouter from "./routes/notification.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
 const app = express();
 
 const webOrigin = process.env.WEB_ORIGIN;
@@ -24,5 +25,6 @@ app.use("/api/projects", requireAuth, projectsRoutes);
 app.use("/api/tasks", requireAuth, tasksRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/notifications", notificationRouter);
+app.use("/api/dashboard", dashboardRoutes);
 app.use(errorMiddleware);
 export default app;

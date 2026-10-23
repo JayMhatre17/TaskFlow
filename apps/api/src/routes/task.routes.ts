@@ -6,6 +6,7 @@ import {
   getTaskActivitiesController,
   getTaskByIdController,
   getTasksController,
+  getDeletedTasksController,
   restoreTaskController,
   updateTaskController,
 } from "../controllers/task.controller";
@@ -22,6 +23,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get("/", getTasksController);
+router.get("/deleted", getDeletedTasksController);
 
 router.post("/", createTaskController);
 

@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/project-collaboration.api";
 import { useProjectMembers } from "@/hooks/queries/useProjectMembers";
 import { useRemoveProjectMember } from "@/hooks/mutation/useProjectMemberMutations";
+import { formatUserName, getDistinctUserEmail } from "@/lib/user-display";
 
 const TeamTable = ({
   projectId,
@@ -31,11 +32,20 @@ const TeamTable = ({
   const columns = columnHelper.columns([
     columnHelper.accessor("name", {
       header: "Member",
-      cell: ({ row }) => row.original.name ?? `User ${row.original.userId}`,
+      cell: ({ row }) => (
+        <span className="block max-w-56 whitespace-normal break-words [overflow-wrap:anywhere]">
+          {formatUserName(row.original)}
+        </span>
+      ),
     }),
     columnHelper.accessor("email", {
       header: "Email",
-      cell: ({ getValue }) => getValue() ?? "—",
+      cell: ({ getValue, row }) => {
+        const email = getDistinctUserEmail(getValue(), formatUserName(row.original));
+        return email ? (
+          <span className="block max-w-56 whitespace-normal break-all">{email}</span>
+        ) : "—";
+      },
     }),
     columnHelper.accessor("joinedAt", {
       header: "Joined",

@@ -10,10 +10,49 @@ import {
   createProject,
   deleteProject,
   getProjectById,
+  getDeletedProjects,
   getProjectOptions,
   getProjects,
+  restoreProject,
   updateProject,
 } from "../service/project.service";
+import { ApiError } from "../errors/api.error";
+
+export const getDeletedProjectsController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projects = await getDeletedProjects(req.user!.id);
+    return res.json({ projects });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const restoreProjectController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new ApiError(400, "Invalid project ID");
+    }
+
+    const project = await restoreProject(id, req.user!.id);
+    if (!project) throw new ApiError(404, "Project not found");
+
+    return res.status(200).json({
+      message: "Project restored successfully",
+      project,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 export const getProjectsController = async (
   req: Request,

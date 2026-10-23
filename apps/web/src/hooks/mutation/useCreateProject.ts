@@ -9,6 +9,7 @@ export const useCreateProject = () => {
       queryClient.invalidateQueries({
         queryKey: ["projects"],
       });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };

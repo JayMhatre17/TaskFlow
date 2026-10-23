@@ -79,6 +79,23 @@ export const getProjects = async (query: ProjectQueryInput, userId: number) => {
     },
   };
 };
+
+export const getDeletedProjects = async (userId: number) => {
+  const projects = await db.orm.public.Project.where({ ownerId: userId }).all();
+
+  return projects
+    .filter((project) => project.deletedAt !== null)
+    .sort((a, b) =>
+      String(b.deletedAt).localeCompare(String(a.deletedAt)),
+    )
+    .map((project) => ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      deletedAt: project.deletedAt,
+      scheduledDeletionAt: project.scheduledDeletionAt,
+    }));
+};
 export const getProjectById = async (id: number, userId: number) => {
   const project = await db.orm.public.Project.first({
     id,
@@ -90,7 +107,7 @@ export const getProjectById = async (id: number, userId: number) => {
   }
 
   if (project.ownerId === userId) {
-    return project;
+    return attachProjectOwner(project);
   }
 
   const membership = await db.orm.public.ProjectMember.first({
@@ -99,7 +116,26 @@ export const getProjectById = async (id: number, userId: number) => {
     removedAt: null,
   });
 
-  return membership ? project : null;
+  return membership ? attachProjectOwner(project) : null;
+};
+
+const attachProjectOwner = async <T extends { ownerId: number }>(project: T) => {
+  const owner = await db.orm.public.User.select(
+    "id",
+    "name",
+    "email",
+    "status",
+  )
+    .where({ id: project.ownerId })
+    .first();
+
+  return {
+    ...project,
+    owner:
+      owner && owner.status !== "DELETED"
+        ? { id: owner.id, name: owner.name, email: owner.email }
+        : null,
+  };
 };
 
 export const createProject = async (

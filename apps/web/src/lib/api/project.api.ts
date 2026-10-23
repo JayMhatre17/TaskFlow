@@ -4,6 +4,11 @@ import { Task } from "./task.api";
 export type Project = {
   id: number;
   ownerId: number;
+  owner?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
   name: string;
   description: string | null;
   status: "Active" | "On Hold";
@@ -33,6 +38,13 @@ export type ProjectListResponse = {
     totalPages: number;
   };
 };
+
+export type DeletedProject = Pick<Project, "id" | "name" | "description"> & {
+  deletedAt: string;
+  scheduledDeletionAt: string | null;
+};
+
+export type DeletedProjectsResponse = { projects: DeletedProject[] };
 export type CreateProjectInput = {
   name: string;
   description?: string;
@@ -85,6 +97,18 @@ export const deleteProject = (id: number) => {
     path: `/api/projects/${id}`,
   });
 };
+
+export const getDeletedProjects = () =>
+  apiRequest<DeletedProjectsResponse>({
+    method: "GET",
+    path: "/api/projects/deleted",
+  });
+
+export const restoreProject = (id: number) =>
+  apiRequest<{ message: string; project: Project }>({
+    method: "POST",
+    path: `/api/projects/${id}/restore`,
+  });
 
 export const getTasksByProject = (projectId: number) => {
   return apiRequest<Task[]>({

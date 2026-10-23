@@ -3,9 +3,11 @@ import {
   createProjectController,
   deleteProjectController,
   getProjectOptionsController,
+  getDeletedProjectsController,
   getProjectsController,
   getProjetByIdController,
   updateProjectController,
+  restoreProjectController,
 } from "../controllers/projects.controller";
 import { getTasksByProjectController } from "../controllers/task.controller";
 import { requireAuth } from "../middlewares/require-auth.middleware";
@@ -32,10 +34,12 @@ router.post("/", createProjectController);
 
 router.get("/options", getProjectOptionsController);
 router.get("/invitations", getMyProjectInvitationsController);
+router.get("/deleted", getDeletedProjectsController);
 
 router.post("/invitations/:token/action", projectInvitationActionController);
 
 router.get("/:id", getProjetByIdController);
+router.post("/:id/restore", restoreProjectController);
 router.patch("/:id", updateProjectController);
 router.delete("/:id", deleteProjectController);
 

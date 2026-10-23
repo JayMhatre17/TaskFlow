@@ -5,12 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import SelectRHF from "../forms/SelectRHF";
-import { createProject, updateProject } from "@/lib/api/project.api";
 import { useRouter } from "next/navigation";
 import { ProjectFormValues, projectSchema } from "./project.schema";
 import { toast } from "sonner";
 import { useCreateProject } from "@/hooks/mutation/useCreateProject";
 import { useUpdateProject } from "@/hooks/mutation/useUpdateProject";
+import { ApiError } from "@/lib/api/client";
+import { getProjectEditLoginPath } from "@/lib/auth-redirect";
 
 type ProjectFormProps = {
   mode: "create" | "edit";
@@ -60,6 +61,11 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
 
       router.push(`/projects/${project.id}`);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401 && projectId) {
+        toast.error("Your session expired. Sign in to continue editing.");
+        router.replace(getProjectEditLoginPath(projectId));
+        return;
+      }
       toast.error(
         error instanceof Error
           ? error.message
@@ -70,7 +76,7 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="min-w-0 w-full space-y-6">
         <div>
           <label className="mb-2 block text-sm font-medium">Project Name</label>
 
@@ -86,7 +92,7 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
 
           <textarea
             {...register("description")}
-            className="min-h-24 w-full rounded-md border p-3 text-sm"
+            className="min-h-24 w-full min-w-0 rounded-md border p-3 text-sm"
           />
         </div>
 

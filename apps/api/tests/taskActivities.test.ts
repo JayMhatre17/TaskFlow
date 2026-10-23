@@ -202,6 +202,46 @@ describe("Task Activity API", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("returns safe actor identity and hides deleted actors", async () => {
+    const response = await ownerApi.get(`/api/tasks/${taskId}/activities`);
+    expect(response.status).toBe(200);
+    expect(response.body.activities[0].actor).toEqual({
+      id: ownerId,
+      name: "Activity API Owner",
+      email: expect.stringMatching(/@example\.com$/),
+    });
+    expect(Object.keys(response.body.activities[0].actor).sort()).toEqual([
+      "email",
+      "id",
+      "name",
+    ]);
+
+    const historicalActivity = await db.orm.public.TaskActivity.create({
+      taskId,
+      actorId: outsiderId,
+      action: "UPDATED",
+      description: "Historical actor check",
+    });
+    await db.orm.public.User.where({ id: outsiderId }).update({
+      status: "DELETED",
+    });
+
+    try {
+      const deletedActorResponse = await ownerApi.get(
+        `/api/tasks/${taskId}/activities`,
+      );
+      const activity = deletedActorResponse.body.activities.find(
+        (item: { id: number }) => item.id === historicalActivity.id,
+      );
+      expect(activity.actorId).toBe(outsiderId);
+      expect(activity.actor).toBeNull();
+    } finally {
+      await db.orm.public.User.where({ id: outsiderId }).update({
+        status: "ACTIVE",
+      });
+    }
+  });
+
   it("returns 404 when the task does not exist", async () => {
     const response = await ownerApi.get("/api/tasks/2000000000/activities");
 

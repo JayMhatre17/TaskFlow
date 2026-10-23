@@ -88,9 +88,9 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
   return (
     <FormProvider {...form}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div>
+        <div className="min-w-0">
           <p className="mb-2 text-sm text-gray-500">
-            Add an existing TaskFlow user to <span className="font-medium">{project.name}</span>.
+            Add an existing TaskFlow user to <span className="break-words font-medium [overflow-wrap:anywhere]">{project.name}</span>.
           </p>
           <label htmlFor="member-search" className="mb-2 block text-sm font-medium">
             Search users
@@ -116,8 +116,8 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
           {selectedCandidate ? (
             <div className="mt-3 flex items-center justify-between rounded-lg border p-3">
               <div>
-                <p className="font-medium">{selectedCandidate.name}</p>
-                <p className="text-sm text-gray-500">{selectedCandidate.email}</p>
+                <p className="break-words font-medium [overflow-wrap:anywhere]">{selectedCandidate.name}</p>
+                <p className="break-all text-sm text-gray-500">{selectedCandidate.email}</p>
               </div>
               <Button
                 type="button"
@@ -171,8 +171,8 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
                       });
                     }}
                   >
-                    <span className="block font-medium">{candidate.name}</span>
-                    <span className="block text-sm text-gray-500">
+                    <span className="block break-words font-medium [overflow-wrap:anywhere]">{candidate.name}</span>
+                    <span className="block break-all text-sm text-gray-500">
                       {candidate.email}
                     </span>
                   </button>

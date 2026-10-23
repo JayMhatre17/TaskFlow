@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/client";
+import { getDistinctUserEmail } from "@/lib/user-display";
 import {
   acceptProjectInvitation,
   rejectProjectInvitation,
@@ -128,6 +129,7 @@ const InvitationAcceptanceContent = () => {
         const projectId = result.invitation.projectId;
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["projects"] }),
+          queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }),
           queryClient.invalidateQueries({ queryKey: ["project", projectId] }),
           queryClient.invalidateQueries({
             queryKey: ["project-members", projectId],
@@ -211,7 +213,11 @@ const InvitationAcceptanceContent = () => {
         </h1>
         <p className="mt-2 text-sm text-gray-600">
           You are signed in as{" "}
-          <span className="font-medium">{currentUserQuery.data.user.email}</span>.
+          <span className="font-medium">{currentUserQuery.data.user.name}</span>
+          {getDistinctUserEmail(
+            currentUserQuery.data.user.email,
+            currentUserQuery.data.user.name,
+          ) && <span>{` (${currentUserQuery.data.user.email})`}</span>}.
           Accepting this invitation will add this account to the project. The
           server will verify that the invitation belongs to this account and is
           still valid.

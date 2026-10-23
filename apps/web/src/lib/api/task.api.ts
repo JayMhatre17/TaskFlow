@@ -10,6 +10,12 @@ export type TaskAssigneeSummary = {
   email: string;
 };
 
+export type TaskUserIdentity = {
+  id: number;
+  name: string;
+  email: string;
+};
+
 export type Task = {
   id: number;
   title: string;
@@ -30,6 +36,20 @@ export type Task = {
   updatedAt: string;
 };
 
+export type DeletedTask = Pick<
+  Task,
+  "id" | "title" | "description" | "status" | "priority" | "dueDate"
+> & {
+  deletedAt: string;
+  project: {
+    id: number;
+    name: string;
+    deletedAt: string | null;
+  };
+};
+
+export type DeletedTasksResponse = { tasks: DeletedTask[] };
+
 export type CreateTaskInput = {
   title: string;
   description?: string;
@@ -47,6 +67,56 @@ export type TaskListResponse = {
     total: number;
     totalPages: number;
   };
+};
+
+export type TaskComment = {
+  id: number;
+  taskId: number;
+  authorId: number | null;
+  author: TaskUserIdentity | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type TaskCommentsResponse = {
+  comments: TaskComment[];
+};
+
+export type CreateTaskCommentResponse = {
+  comment: TaskComment;
+};
+
+export type TaskActivityAction =
+  | "CREATED"
+  | "UPDATED"
+  | "STATUS_CHANGED"
+  | "PRIORITY_CHANGED"
+  | "DUE_DATE_CHANGED"
+  | "DELETED"
+  | "RESTORED"
+  | "CLOSED"
+  | "REOPENED"
+  | "COMMENT_ADDED"
+  | "COMMENT_UPDATED"
+  | "COMMENT_DELETED";
+
+export type TaskActivity = {
+  id: number;
+  taskId: number;
+  actorId: number | null;
+  actor: TaskUserIdentity | null;
+  action: TaskActivityAction;
+  field: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  description: string | null;
+  createdAt: string;
+};
+
+export type TaskActivitiesResponse = {
+  activities: TaskActivity[];
 };
 export type UpdateTaskInput = Partial<CreateTaskInput>;
 
@@ -124,6 +194,25 @@ export const assignTask = (taskId: number, data: AssignTaskInput) =>
     body: data,
   });
 
+export const getTaskComments = (taskId: number) =>
+  apiRequest<TaskCommentsResponse>({
+    method: "GET",
+    path: `/api/tasks/${taskId}/comments`,
+  });
+
+export const createTaskComment = (taskId: number, content: string) =>
+  apiRequest<CreateTaskCommentResponse>({
+    method: "POST",
+    path: `/api/tasks/${taskId}/comments`,
+    body: { content },
+  });
+
+export const getTaskActivities = (taskId: number) =>
+  apiRequest<TaskActivitiesResponse>({
+    method: "GET",
+    path: `/api/tasks/${taskId}/activities`,
+  });
+
 //delete task
 export const deleteTask = (id: number) => {
   return apiRequest<void>({
@@ -131,3 +220,15 @@ export const deleteTask = (id: number) => {
     path: `/api/tasks/${id}`,
   });
 };
+
+export const getDeletedTasks = () =>
+  apiRequest<DeletedTasksResponse>({
+    method: "GET",
+    path: "/api/tasks/deleted",
+  });
+
+export const restoreTask = (id: number) =>
+  apiRequest<{ message: string }>({
+    method: "PATCH",
+    path: `/api/tasks/${id}/restore`,
+  });

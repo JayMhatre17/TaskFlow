@@ -1578,6 +1578,22 @@ describe("Task API", () => {
       name: member.name,
       email: member.email,
     });
+
+    await db.orm.public.User.where({ id: member.id }).update({
+      status: "DELETED",
+    });
+    try {
+      const deletedAssigneeResponse = await authenticatedRequestWithSession(
+        ownerSession.id,
+      ).get(`/api/tasks/${task.id}`);
+      expect(deletedAssigneeResponse.status).toBe(200);
+      expect(deletedAssigneeResponse.body.assigneeId).toBe(member.id);
+      expect(deletedAssigneeResponse.body.assignee).toBeNull();
+    } finally {
+      await db.orm.public.User.where({ id: member.id }).update({
+        status: "ACTIVE",
+      });
+    }
   });
   it("should prevent a non-member from assigning a task", async () => {
     const owner = await createTestUser("assignment-owner");

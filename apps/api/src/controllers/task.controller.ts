@@ -6,6 +6,7 @@ import {
   deleteTask,
   getTaskActivities,
   getTaskById,
+  getDeletedTasks,
   getTasks,
   getTasksByProjectId,
   restoreTask,
@@ -19,6 +20,19 @@ import {
 } from "../schema/task.schema";
 import { ApiError } from "../errors/api.error";
 import { parsePositiveId } from "./taskComment.controller";
+
+export const getDeletedTasksController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const tasks = await getDeletedTasks(req.user!.id);
+    return res.status(200).json({ tasks });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 export const getTasksController = async (
   req: Request,

@@ -21,7 +21,7 @@ type TaskChartProps = {
 
 const TaskChart = ({ data }: TaskChartProps) => {
   return (
-    <div className="h-64 w-full">
+    <div className="h-64 w-full min-w-0 max-w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
           <CartesianGrid vertical={false} />

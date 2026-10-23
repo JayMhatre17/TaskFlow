@@ -10,6 +10,8 @@ import DeleteProjectButton from "./DeleteProjectButton";
 import { Badge } from "../ui/badge";
 import { formatDate } from "@/lib/basicFn";
 import { useProjectTasks } from "@/hooks/queries/useProjectTasks";
+import { useCurrentUser } from "@/hooks/queries/useAuth";
+import ProjectMembersSection from "./ProjectMembersSection";
 
 const ProjectDetails = ({ id }: { id: number }) => {
   const {
@@ -19,6 +21,7 @@ const ProjectDetails = ({ id }: { id: number }) => {
     error,
     refetch,
   } = useProject(Number(id));
+  const currentUserQuery = useCurrentUser();
   const projectTasksQuery = useProjectTasks(id, Boolean(project));
   const tasks = projectTasksQuery.data ?? [];
   const completedTaskCount = tasks.filter(
@@ -52,46 +55,49 @@ const ProjectDetails = ({ id }: { id: number }) => {
     );
   }
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="mb-2 text-sm text-gray-500">
-            Home / Projects / {project?.name}
+      <div className="flex min-w-0 flex-col items-start justify-between gap-4 sm:flex-row">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 break-words text-sm text-gray-500">
+            Home / Projects / {project.name}
           </div>
 
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {project?.name}
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="min-w-0 break-words text-2xl font-bold text-gray-900">
+              {project.name}
             </h1>
 
-            <Badge>{project?.status}</Badge>
+            <Badge>{project.status}</Badge>
           </div>
 
-          <p className="mt-2 text-sm text-gray-500">{project?.description}</p>
+          {project.description && (
+            <p className="mt-2 break-words text-sm text-gray-500 [overflow-wrap:anywhere]">
+              {project.description}
+            </p>
+          )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/team?projectId=${project.id}`}>
-            <Button variant="outline" className="cursor-pointer">
-              Team
-            </Button>
-          </Link>
-          <Link href={`/projects/${project?.id}/edit`}>
-            <Button variant="outline" className="cursor-pointer">
-              Edit
-            </Button>
-          </Link>
-          <DeleteProjectButton
-            projectId={project.id}
-            projectName={project.name}
-          />
-        </div>
+        {currentUserQuery.data?.user.id === project.ownerId && (
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link href={`/team?projectId=${project.id}`}>
+              <Button variant="outline" className="cursor-pointer">
+                Team
+              </Button>
+            </Link>
+            <Link href={`/projects/${project.id}/edit`}>
+              <Button variant="outline" className="cursor-pointer">
+                Edit
+              </Button>
+            </Link>
+            <DeleteProjectButton projectId={project.id} projectName={project.name} />
+          </div>
+        )}
       </div>
 
       {/* Overview */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border bg-white p-6 lg:col-span-2">
+        <div className="min-w-0 rounded-xl border bg-white p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold">Project Information</h2>
 
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -110,7 +116,7 @@ const ProjectDetails = ({ id }: { id: number }) => {
         </div>
 
         {/* Progress */}
-        <div className="rounded-xl border bg-white p-6">
+        <div className="min-w-0 rounded-xl border bg-white p-6">
           <h2 className="text-lg font-semibold">Progress</h2>
 
           {projectTasksQuery.isPending ? (
@@ -152,6 +158,8 @@ const ProjectDetails = ({ id }: { id: number }) => {
           )}
         </div>
       </div>
+
+      <ProjectMembersSection project={project} />
     </div>
   );
 };

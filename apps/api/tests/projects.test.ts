@@ -1127,7 +1127,17 @@ describe("GET /api/projects", () => {
         name: project.name,
         description: project.description,
         status: project.status,
+        owner: {
+          id: project.ownerId,
+          name: expect.any(String),
+          email: expect.stringMatching(/@example\.com$/),
+        },
       });
+      expect(Object.keys(response.body.owner).sort()).toEqual([
+        "email",
+        "id",
+        "name",
+      ]);
     });
 
     it("allows owners and active members but denies removed members and other users", async () => {
@@ -1584,6 +1594,45 @@ describe("PATCH /api/projects/:id", () => {
     }
 
     createdProjectIds.length = 0;
+  });
+
+  it("does not allow an active project member to edit the project", async () => {
+    const project = await createTestProject({
+      name: `[TEST] Member project edit ${Date.now()}`,
+      description: "Original description",
+      status: "Active",
+    });
+    createdProjectIds.push(project.id);
+    const member = await createAuthenticatedAgent();
+    let membershipId: number | undefined;
+
+    try {
+      const membership = await db.orm.public.ProjectMember.create({
+        projectId: project.id,
+        userId: member.user.id,
+        addedById: project.ownerId,
+        joinedAt: new Date().toISOString(),
+        removedAt: null,
+      });
+      membershipId = membership.id;
+
+      const response = await authenticatedRequestWithSession(member.session.id)
+        .patch(`/api/projects/${project.id}`)
+        .send({ name: "Unauthorized change" });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty("message", "Project not found");
+
+      const unchangedProject = await db.orm.public.Project.where({
+        id: project.id,
+      }).first();
+      expect(unchangedProject?.name).toBe(project.name);
+    } finally {
+      if (membershipId !== undefined) {
+        await db.orm.public.ProjectMember.where({ id: membershipId }).delete();
+      }
+      await member.cleanup();
+    }
   });
 
   it("should update a project successfully", async () => {

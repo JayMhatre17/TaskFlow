@@ -87,6 +87,25 @@ describe("project member candidate search", () => {
         expect(user.id).not.toBe(inactiveCandidate.id);
       }
 
+      const membersResponse = await ownerRequest.get(
+        `/api/projects/${project.id}/members`,
+      );
+      expect(membersResponse.status).toBe(200);
+      const listedMember = membersResponse.body.find(
+        (listed: { userId: number }) => listed.userId === member.user.id,
+      );
+      expect(listedMember).toMatchObject({
+        userId: member.user.id,
+        name: member.user.name,
+        email: member.user.email,
+      });
+      expect(Object.keys(listedMember).sort()).toEqual([
+        "email",
+        "joinedAt",
+        "name",
+        "userId",
+      ]);
+
       const memberResponse = await authenticatedRequestWithSession(
         member.session.id,
       ).get(

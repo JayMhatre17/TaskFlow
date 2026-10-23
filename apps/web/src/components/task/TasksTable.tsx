@@ -9,6 +9,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import TasksPagination from "./TasksPagination";
+import { formatUserName } from "@/lib/user-display";
 
 type TasksTableProps = {
   tasks: Task[];
@@ -91,7 +92,13 @@ const TasksTable = ({ tasks, pagination }: TasksTableProps) => {
     {
       accessorKey: "assignee",
       header: "Assignee",
-      cell: ({ row }) => <p>{row.original.assignee?.name ?? "Unassigned"}</p>,
+      cell: ({ row }) => (
+        <p>
+          {row.original.assigneeId === null
+            ? "Unassigned"
+            : formatUserName(row.original.assignee)}
+        </p>
+      ),
     },
     {
       accessorKey: "status",

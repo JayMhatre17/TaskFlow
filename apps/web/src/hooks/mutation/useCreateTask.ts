@@ -7,6 +7,7 @@ export const useCreateTask = () => {
     mutationFn: (data: CreateTaskInput) => createTask(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };

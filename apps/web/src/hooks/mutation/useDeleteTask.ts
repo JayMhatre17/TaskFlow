@@ -15,6 +15,7 @@ export const useDeleteTask = () => {
       queryClient.invalidateQueries({
         queryKey: ["tasks"],
       });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };

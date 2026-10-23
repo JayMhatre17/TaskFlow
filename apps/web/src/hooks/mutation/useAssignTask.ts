@@ -26,6 +26,7 @@ export const useAssignTask = () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["task", taskId] }),
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }),
         queryClient.invalidateQueries({
           queryKey: ["project-tasks", projectId],
         }),

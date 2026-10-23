@@ -11,6 +11,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -36,6 +37,11 @@ const menuItems = [
     label: "Team",
     href: "/team",
     icon: Users,
+  },
+  {
+    label: "Trash",
+    href: "/trash",
+    icon: Trash2,
   },
 ];
 type SidebarProps = {

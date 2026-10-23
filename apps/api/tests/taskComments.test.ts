@@ -165,6 +165,39 @@ describe("Task Comment API", () => {
     expect(response.status).toBe(201);
     expect(response.body.comment.content).toBe("Hello from API");
     expect(response.body.comment.authorId).toBe(owner.user.id);
+    expect(response.body.comment.author).toEqual({
+      id: owner.user.id,
+      name: owner.user.name,
+      email: owner.user.email,
+    });
+    expect(Object.keys(response.body.comment.author).sort()).toEqual([
+      "email",
+      "id",
+      "name",
+    ]);
+  });
+
+  it("returns no identity details for a deleted comment author", async () => {
+    const { owner, member, task } = await createFixture();
+    await createTaskComment(
+      task.id,
+      { content: "Historical comment" },
+      member.user.id,
+    );
+    await db.orm.public.User.where({ id: member.user.id }).update({
+      status: "DELETED",
+    });
+
+    try {
+      const response = await owner.api.get(`/api/tasks/${task.id}/comments`);
+      expect(response.status).toBe(200);
+      expect(response.body.comments[0].authorId).toBe(member.user.id);
+      expect(response.body.comments[0].author).toBeNull();
+    } finally {
+      await db.orm.public.User.where({ id: member.user.id }).update({
+        status: "ACTIVE",
+      });
+    }
   });
 
   it("should reject an empty comment", async () => {
@@ -210,6 +243,11 @@ describe("Task Comment API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.comment.content).toBe("Updated content");
+    expect(response.body.comment.author).toEqual({
+      id: owner.user.id,
+      name: owner.user.name,
+      email: owner.user.email,
+    });
   });
 
   it("should prevent a member from editing another user's comment", async () => {

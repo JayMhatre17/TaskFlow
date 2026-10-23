@@ -8,6 +8,9 @@ import { Badge } from "../ui/badge";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import DeleteTaskAction from "./DeleteTaskAction";
+import TaskActivitySection from "./TaskActivitySection";
+import TaskCommentsSection from "./TaskCommentsSection";
+import { formatUserName, getDistinctUserEmail } from "@/lib/user-display";
 
 type TaskDetailsContentProps = {
   taskId: number;
@@ -40,24 +43,24 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
     );
   }
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{task.title}</h1>
+      <div className="flex min-w-0 flex-col items-start justify-between gap-4 sm:flex-row">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="min-w-0 break-words text-2xl font-bold [overflow-wrap:anywhere]">{task.title}</h1>
 
             <Badge>{task.status}</Badge>
           </div>
 
           {task.description && (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
               {task.description}
             </p>
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Link href={`/tasks/${task.id}/edit`} className="cursor-pointer">
             <Button variant="outline" className="cursor-pointer">
               Edit
@@ -69,16 +72,16 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
       </div>
 
       {/* Task information */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border bg-white p-6 lg:col-span-2">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 rounded-xl border bg-white p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold">Task Information</h2>
 
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
             {/* Project */}
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Project</p>
 
-              <p className="mt-1 font-medium">
+              <p className="mt-1 break-words font-medium [overflow-wrap:anywhere]">
                 {task.project?.name ?? "Unknown project"}
               </p>
             </div>
@@ -87,13 +90,19 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
             <div>
               <p className="text-sm text-muted-foreground">Assignee</p>
               <p className="mt-1 font-medium">
-                {task.assignee?.name ?? "Unassigned"}
+                {task.assigneeId === null
+                  ? "Unassigned"
+                  : formatUserName(task.assignee)}
               </p>
-              {task.assignee?.email && (
-                <p className="text-sm text-muted-foreground">
-                  {task.assignee.email}
-                </p>
-              )}
+              {task.assigneeId !== null &&
+                getDistinctUserEmail(
+                  task.assignee?.email,
+                  formatUserName(task.assignee),
+                ) && (
+                  <p className="break-all text-sm text-muted-foreground">
+                    {task.assignee?.email}
+                  </p>
+                )}
             </div>
 
             {/* Priority */}
@@ -132,7 +141,7 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
         </div>
 
         {/* Summary */}
-        <div className="rounded-xl border bg-white p-6">
+        <div className="min-w-0 rounded-xl border bg-white p-6">
           <h2 className="text-lg font-semibold">Summary</h2>
 
           <div className="mt-6 space-y-5">
@@ -183,17 +192,8 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
         </div>
       </div>
 
-      {/* Activity */}
-      <div className="rounded-xl border bg-white p-6">
-        <h2 className="text-lg font-semibold">Activity</h2>
-
-        <div className="mt-6">
-          <p className="text-sm text-muted-foreground">
-            Activity tracking will be available once the activity system is
-            implemented.
-          </p>
-        </div>
-      </div>
+      <TaskCommentsSection taskId={taskId} />
+      <TaskActivitySection taskId={taskId} />
     </div>
   );
 };

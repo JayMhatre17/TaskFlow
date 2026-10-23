@@ -1,32 +1,35 @@
-import { CheckCircle, FolderKanban, ListTodo, Users } from "lucide-react";
+import { CheckCircle, Clock3, FolderKanban, ListTodo } from "lucide-react";
 import StatsCard from "./StatsCard";
+import type { DashboardSummary } from "@/lib/api/dashboard.api";
 
-const stats = [
+const DashboardStatsCard = ({ stats }: { stats: DashboardSummary["stats"] }) => {
+  const cards = [
   {
-    label: "Total Projects",
-    value: 12,
+    label: "Active Projects",
+    value: stats.activeProjects,
     icon: FolderKanban,
+    href: "/projects?status=Active",
   },
   {
-    label: "Active Tasks",
-    value: 24,
+    label: "Open Tasks",
+    value: stats.openTasks,
     icon: ListTodo,
   },
   {
-    label: "Team Members",
-    value: 8,
-    icon: Users,
+    label: "Completed Tasks",
+    value: stats.completedTasks,
+    icon: CheckCircle,
+    href: "/tasks?status=COMPLETED",
   },
   {
-    label: "Completed",
-    value: 67,
-    icon: CheckCircle,
+    label: "Overdue Tasks",
+    value: stats.overdueTasks,
+    icon: Clock3,
   },
 ];
-const DashboardStatsCard = () => {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat) => (
+      {cards.map((stat) => (
         <StatsCard key={stat.label} {...stat} />
       ))}
     </div>

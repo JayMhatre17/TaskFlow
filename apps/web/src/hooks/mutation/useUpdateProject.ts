@@ -19,6 +19,7 @@ export const useUpdateProject = () => {
       queryClient.invalidateQueries({
         queryKey: ["projects"],
       });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 };

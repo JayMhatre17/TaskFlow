@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { getDashboardSummary } from "../service/dashboard.service";
+import { getDashboardSummary } from "../service/dashboard.service.js";
 
 export const getDashboardSummaryController = async (
   req: Request,

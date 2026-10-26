@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { ApiError } from "../errors/api.error";
-import { getSessionById, isSessionExpired } from "../service/session.service";
-import { db } from "../prisma/db";
+import { ApiError } from "../errors/api.error.js";
+import { getSessionById, isSessionExpired } from "../service/session.service.js";
+import { db } from "../prisma/db.js";
 
 export const requireAuth = async (
   req: Request,

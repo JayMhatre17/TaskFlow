@@ -1,19 +1,19 @@
 import cors from "cors";
 import express from "express";
-import healthRoutes from "./routes/health.routes";
-import projectsRoutes from "./routes/projects.routes";
+import healthRoutes from "./routes/health.routes.js";
+import projectsRoutes from "./routes/projects.routes.js";
 import tasksRoutes from "./routes/task.routes.js";
-import { errorMiddleware } from "./middlewares/error.middleware";
-import authRoutes from "./routes/auth.routes";
+import { errorMiddleware } from "./middlewares/error.middleware.js";
+import authRoutes from "./routes/auth.routes.js";
 import cookieParser from "cookie-parser";
 import {
   requireAuth,
   requireMasterAdmin,
   requirePasswordChangeComplete,
-} from "./middlewares/require-auth.middleware";
-import notificationRouter from "./routes/notification.routes";
-import dashboardRoutes from "./routes/dashboard.routes";
-import adminRoutes from "./routes/admin.routes";
+} from "./middlewares/require-auth.middleware.js";
+import notificationRouter from "./routes/notification.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 const app = express();
 
 const webOrigin = process.env.WEB_ORIGIN;

@@ -1,6 +1,6 @@
-import { ApiError } from "../errors/api.error";
-import { db } from "../prisma/db";
-import { hashpassword, verifypassword } from "../utils/password";
+import { ApiError } from "../errors/api.error.js";
+import { db } from "../prisma/db.js";
+import { hashpassword, verifypassword } from "../utils/password.js";
 
 export const getUserByEmail = async (email: string) => {
   return db.orm.public.User.where({

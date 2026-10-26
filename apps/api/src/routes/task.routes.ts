@@ -9,14 +9,14 @@ import {
   getDeletedTasksController,
   restoreTaskController,
   updateTaskController,
-} from "../controllers/task.controller";
-import { requireAuth } from "../middlewares/require-auth.middleware";
+} from "../controllers/task.controller.js";
+import { requireAuth } from "../middlewares/require-auth.middleware.js";
 import {
   createTaskCommentController,
   deleteTaskCommentController,
   getTaskCommentsController,
   updateTaskCommentController,
-} from "../controllers/taskComment.controller";
+} from "../controllers/taskComment.controller.js";
 
 const router = Router();
 

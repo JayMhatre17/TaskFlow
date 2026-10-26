@@ -1,4 +1,4 @@
-import { db } from "../prisma/db";
+import { db } from "../prisma/db.js";
 
 export const getProjectAccess = async (projectId: number, userId: number) => {
   // 1. Check whether the project exists.

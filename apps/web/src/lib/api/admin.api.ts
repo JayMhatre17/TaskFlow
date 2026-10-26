@@ -17,6 +17,7 @@ export type ManagedUsersResponse = {
 };
 export type CreateManagedUserInput = { name: string; email: string; temporaryPassword: string };
 export type ManagedUserStatusResponse = { message: string; user: ManagedUser };
+export type ManagedUserPasswordResetResponse = ManagedUserStatusResponse & { temporaryPassword: string };
 
 export const getManagedUsers = (params: ManagedUsersParams) =>
   apiRequest<ManagedUsersResponse>({ method: "GET", path: "/api/admin/users", params });
@@ -38,4 +39,16 @@ export const reactivateManagedUser = (userId: number) =>
   apiRequest<ManagedUserStatusResponse>({
     method: "PATCH",
     path: `/api/admin/users/${userId}/reactivate`,
+  });
+
+export const resetManagedUserPassword = (userId: number) =>
+  apiRequest<ManagedUserPasswordResetResponse>({
+    method: "POST",
+    path: `/api/admin/users/${userId}/reset-password`,
+  });
+
+export const forceManagedUserPasswordChange = (userId: number) =>
+  apiRequest<ManagedUserStatusResponse>({
+    method: "POST",
+    path: `/api/admin/users/${userId}/force-password-change`,
   });

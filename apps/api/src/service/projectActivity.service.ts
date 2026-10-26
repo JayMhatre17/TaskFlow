@@ -1,7 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { ApiError } from "../errors/api.error";
-import { db } from "../prisma/db";
-import { getProjectAccess } from "./projectAccess.service";
+import { ApiError } from "../errors/api.error.js";
+import { db } from "../prisma/db.js";
+import { getProjectAccess } from "./projectAccess.service.js";
 
 type ProjectActivityAction =
   "CREATED" | "UPDATED" | "OWNER_CHANGED" | "DELETED" | "RESTORED";

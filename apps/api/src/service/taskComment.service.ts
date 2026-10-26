@@ -1,11 +1,11 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { ApiError } from "../errors/api.error";
-import { db } from "../prisma/db";
+import { ApiError } from "../errors/api.error.js";
+import { db } from "../prisma/db.js";
 import {
   CreateTaskCommentInput,
   UpdateTaskCommentInput,
-} from "../schema/taskComment.schema";
-import { getProjectAccess } from "./projectAccess.service";
+} from "../schema/taskComment.schema.js";
+import { getProjectAccess } from "./projectAccess.service.js";
 
 type TaskCommentRecord = Awaited<
   ReturnType<typeof db.orm.public.TaskComment.all>

@@ -5,8 +5,8 @@ import {
   loginController,
   logoutController,
   updateCurrentUserController,
-} from "../controllers/auth.controller";
-import { requireAuth, requirePasswordChangeComplete } from "../middlewares/require-auth.middleware";
+} from "../controllers/auth.controller.js";
+import { requireAuth, requirePasswordChangeComplete } from "../middlewares/require-auth.middleware.js";
 
 const router = Router();
 

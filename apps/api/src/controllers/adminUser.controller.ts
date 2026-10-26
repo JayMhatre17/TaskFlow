@@ -1,7 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
-import { ApiError } from "../errors/api.error";
-import { adminUserQuerySchema, createAdminUserSchema } from "../schema/auth.schema";
-import { changeManagedUserStatus, createManagedUser, listManagedUsers } from "../service/adminUser.service";
+import { ApiError } from "../errors/api.error.js";
+import { adminUserQuerySchema, createAdminUserSchema } from "../schema/auth.schema.js";
+import {
+  changeManagedUserStatus,
+  createManagedUser,
+  forceManagedUserPasswordChange,
+  listManagedUsers,
+  resetManagedUserPassword,
+} from "../service/adminUser.service.js";
 
 export const listManagedUsersController = async (
   req: Request,
@@ -56,3 +62,45 @@ const changeUserStatusController = (status: "ACTIVE" | "DEACTIVATED") =>
 
 export const deactivateManagedUserController = changeUserStatusController("DEACTIVATED");
 export const reactivateManagedUserController = changeUserStatusController("ACTIVE");
+
+const getTargetUserId = (req: Request) => {
+  const userId = Number(req.params.userId);
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    throw new ApiError(400, "Invalid user ID");
+  }
+  return userId;
+};
+
+export const resetManagedUserPasswordController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = await resetManagedUserPassword(getTargetUserId(req), req.user!.id);
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({
+      message: "Password reset successfully. Share the temporary password securely.",
+      temporaryPassword: result.temporaryPassword,
+      user: result.user,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const forceManagedUserPasswordChangeController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const user = await forceManagedUserPasswordChange(getTargetUserId(req), req.user!.id);
+    return res.status(200).json({
+      message: "Password change required at next login",
+      user,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};

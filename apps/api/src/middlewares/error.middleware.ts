@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { ApiError } from "../errors/api.error";
+import { ApiError } from "../errors/api.error.js";
 import { ZodError } from "zod";
 
 export const errorMiddleware = (

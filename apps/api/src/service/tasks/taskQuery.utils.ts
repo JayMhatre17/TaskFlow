@@ -1,5 +1,5 @@
-import { db } from "../../prisma/db";
-import { TaskQueryInput } from "../../schema/task.schema";
+import { db } from "../../prisma/db.js";
+import { TaskQueryInput } from "../../schema/task.schema.js";
 
 export const applyTaskSorting = (
   query: typeof db.orm.public.Task,

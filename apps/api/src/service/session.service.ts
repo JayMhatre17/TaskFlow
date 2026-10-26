@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { db } from "../prisma/db";
+import { db } from "../prisma/db.js";
 import { Temporal } from "@js-temporal/polyfill";
 
 const SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60; // 7 days in seconds

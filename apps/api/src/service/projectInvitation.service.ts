@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { ApiError } from "../errors/api.error";
-import { db } from "../prisma/db";
-import { generateInvitaionToken } from "../utils/invitationToken";
-import { getUserByEmail } from "./auth.service";
-import { getProjectAccess } from "./projectAccess.service";
+import { ApiError } from "../errors/api.error.js";
+import { db } from "../prisma/db.js";
+import { generateInvitaionToken } from "../utils/invitationToken.js";
+import { getUserByEmail } from "./auth.service.js";
+import { getProjectAccess } from "./projectAccess.service.js";
 import { or } from "@prisma/orm-postgres/orm-client";
-import { createNotificationWithClient } from "./notification.service";
+import { createNotificationWithClient } from "./notification.service.js";
 
 const INVITATION_DURATION_DAYS = 7;
 

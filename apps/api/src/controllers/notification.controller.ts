@@ -1,11 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
-import { ApiError } from "../errors/api.error";
+import { ApiError } from "../errors/api.error.js";
 import {
   getMyNotifications,
   getUnreadNotificationCount,
   markAllNotificationsAsRead,
   markNotificationAsRead,
-} from "../service/notification.service";
+} from "../service/notification.service.js";
 
 const parsePositiveId = (value: string | string[]): number => {
   const id = Number(value);

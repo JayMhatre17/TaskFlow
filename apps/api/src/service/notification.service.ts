@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { ApiError } from "../errors/api.error";
-import { db } from "../prisma/db";
+import { ApiError } from "../errors/api.error.js";
+import { db } from "../prisma/db.js";
 
 type CreateNotificationInput = {
   userId: number;

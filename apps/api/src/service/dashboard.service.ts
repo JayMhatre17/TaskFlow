@@ -1,9 +1,9 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { or } from "@prisma/orm-postgres/orm-client";
-import { TASK_STATUS } from "../constants/task.constants";
-import { db } from "../prisma/db";
-import { getProjects } from "./project.service";
-import { getTasks } from "./task.service";
+import { TASK_STATUS } from "../constants/task.constants.js";
+import { db } from "../prisma/db.js";
+import { getProjects } from "./project.service.js";
+import { getTasks } from "./task.service.js";
 
 const RECENT_ITEMS_LIMIT = 5;
 const RECENT_ACTIVITY_LIMIT = 10;

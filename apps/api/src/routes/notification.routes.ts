@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { requireAuth, requirePasswordChangeComplete } from "../middlewares/require-auth.middleware";
+import { requireAuth, requirePasswordChangeComplete } from "../middlewares/require-auth.middleware.js";
 import {
   getMyNotificationsController,
   getUnreadNotificationCountController,
   markAllNotificationsAsReadController,
   markNotificationAsReadController,
-} from "../controllers/notification.controller";
+} from "../controllers/notification.controller.js";
 
 const router = Router();
 

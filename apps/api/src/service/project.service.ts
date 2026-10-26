@@ -1,13 +1,13 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { db } from "../prisma/db";
+import { db } from "../prisma/db.js";
 import {
   CreateProjectInput,
   ProjectQueryInput,
   UpdateProjectInput,
-} from "../schema/project.schema";
+} from "../schema/project.schema.js";
 import { or } from "@prisma/orm-postgres/orm-client";
-import { applyProjectSorting } from "./projects/projectQuery.utils";
-import { ApiError } from "../errors/api.error";
+import { applyProjectSorting } from "./projects/projectQuery.utils.js";
+import { ApiError } from "../errors/api.error.js";
 
 const toActivityValue = (value: unknown): string | null => {
   if (value === undefined || value === null) {

@@ -11,15 +11,15 @@ import {
   getTasksByProjectId,
   restoreTask,
   updateTask,
-} from "../service/task.service";
+} from "../service/task.service.js";
 import {
   assignTaskSchema,
   createTaskSchema,
   taskQuerySchema,
   updateTaskSchema,
-} from "../schema/task.schema";
-import { ApiError } from "../errors/api.error";
-import { parsePositiveId } from "./taskComment.controller";
+} from "../schema/task.schema.js";
+import { ApiError } from "../errors/api.error.js";
+import { parsePositiveId } from "./taskComment.controller.js";
 
 export const getDeletedTasksController = async (
   req: Request,

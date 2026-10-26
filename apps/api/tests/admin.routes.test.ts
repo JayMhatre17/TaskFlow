@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import app from "../src/app";
 import { db } from "../src/prisma/db";
@@ -228,6 +228,151 @@ describe("Master Admin user management", () => {
     expect((await db.orm.public.User.where({ id: master.user.id }).first())?.status).toBe("ACTIVE");
     expect((await db.orm.public.User.where({ id: otherMaster.user.id }).first())?.status).toBe("ACTIVE");
     expect((await db.orm.public.User.where({ id: unprotectedAdmin.user.id }).first())?.status).toBe("ACTIVE");
+  });
+
+  it("resets passwords only for active regular accounts and returns the generated password once", async () => {
+    const master = await createAccount("password-reset-master", { master: true });
+    const regular = await createAccount("password-reset-regular");
+    const target = await createAccount("password-reset-target");
+    const protectedTarget = await createAccount("password-reset-protected-target", { master: true });
+    const inactiveTarget = await createAccount("password-reset-inactive-target");
+    await db.orm.public.User.where({ id: inactiveTarget.user.id }).update({
+      status: "DEACTIVATED",
+      deactivatedAt: "2026-01-01T00:00:00Z",
+    });
+
+    const masterCookie = `taskflow_session=${master.session.id}`;
+    const targetCookie = `taskflow_session=${target.session.id}`;
+    const targetSecondSession = await createSession(target.user.id);
+    const originalHash = (await db.orm.public.User.where({ id: target.user.id }).first())!.passwordHash;
+    const inactiveHash = (await db.orm.public.User.where({ id: inactiveTarget.user.id }).first())!.passwordHash;
+    const logSpy = vi.spyOn(console, "log");
+    const warnSpy = vi.spyOn(console, "warn");
+    const errorSpy = vi.spyOn(console, "error");
+
+    try {
+      expect((await request(app).post(`/api/admin/users/${target.user.id}/reset-password`)).status).toBe(401);
+      expect((await request(app)
+        .post(`/api/admin/users/${target.user.id}/reset-password`)
+        .set("Cookie", `taskflow_session=${regular.session.id}`)).status).toBe(403);
+      expect((await request(app)
+        .post(`/api/admin/users/${master.user.id}/reset-password`)
+        .set("Cookie", masterCookie)).status).toBe(403);
+      expect((await request(app)
+        .post(`/api/admin/users/${protectedTarget.user.id}/reset-password`)
+        .set("Cookie", masterCookie)).status).toBe(403);
+      expect((await request(app)
+        .post(`/api/admin/users/${inactiveTarget.user.id}/reset-password`)
+        .set("Cookie", masterCookie)).status).toBe(409);
+      expect((await db.orm.public.User.where({ id: inactiveTarget.user.id }).first())?.passwordHash).toBe(inactiveHash);
+      expect(await db.orm.public.Session.where({ userId: inactiveTarget.user.id }).all()).toHaveLength(1);
+
+      const reset = await request(app)
+        .post(`/api/admin/users/${target.user.id}/reset-password`)
+        .set("Cookie", masterCookie);
+
+      expect(reset.status).toBe(200);
+      expect(reset.headers["cache-control"]).toContain("no-store");
+      expect(reset.body.temporaryPassword).toMatch(/^[A-Za-z0-9_-]{32}$/);
+      expect(JSON.stringify(reset.body).split(reset.body.temporaryPassword)).toHaveLength(2);
+      expect(reset.body.user).toMatchObject({ id: target.user.id, status: "ACTIVE", mustChangePassword: true });
+      expect(reset.body.user).not.toHaveProperty("passwordHash");
+      expect(reset.body.user).not.toHaveProperty("temporaryPassword");
+      expect(JSON.stringify(reset.body)).not.toContain(target.session.id);
+
+      const stored = await db.orm.public.User.where({ id: target.user.id }).first();
+      expect(stored?.passwordHash).not.toBe(originalHash);
+      expect(stored?.passwordHash).not.toContain(reset.body.temporaryPassword);
+      expect(JSON.stringify(stored)).not.toContain(reset.body.temporaryPassword);
+      expect(stored?.mustChangePassword).toBe(true);
+      expect(await db.orm.public.Session.where({ userId: target.user.id }).all()).toHaveLength(0);
+      expect((await request(app).get("/api/auth/me").set("Cookie", targetCookie)).status).toBe(401);
+      expect((await request(app).get("/api/auth/me").set("Cookie", `taskflow_session=${targetSecondSession.id}`)).status).toBe(401);
+
+      const login = await request(app).post("/api/auth/login").send({
+        email: target.user.email,
+        password: reset.body.temporaryPassword,
+      });
+      expect(login.status).toBe(200);
+      expect(login.body.user.mustChangePassword).toBe(true);
+      expect(JSON.stringify(login.body)).not.toContain(reset.body.temporaryPassword);
+      const temporaryLoginCookie = String(login.headers["set-cookie"]?.[0]).split(";")[0];
+      expect((await request(app).get("/api/projects").set("Cookie", temporaryLoginCookie)).status).toBe(403);
+
+      const listed = await request(app)
+        .get(`/api/admin/users?search=${encodeURIComponent(target.user.email)}`)
+        .set("Cookie", masterCookie);
+      expect(listed.status).toBe(200);
+      expect(JSON.stringify(listed.body)).not.toContain(reset.body.temporaryPassword);
+      expect(JSON.stringify([...logSpy.mock.calls, ...warnSpy.mock.calls, ...errorSpy.mock.calls]))
+        .not.toContain(reset.body.temporaryPassword);
+    } finally {
+      logSpy.mockRestore();
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("forces active regular users to change their existing password without resetting it", async () => {
+    const master = await createAccount("force-change-master", { master: true });
+    const regular = await createAccount("force-change-regular");
+    const target = await createAccount("force-change-target");
+    const protectedTarget = await createAccount("force-change-protected-target", { master: true });
+    const inactiveTarget = await createAccount("force-change-inactive-target");
+    await db.orm.public.User.where({ id: inactiveTarget.user.id }).update({
+      status: "DEACTIVATED",
+      deactivatedAt: "2026-01-01T00:00:00Z",
+    });
+
+    const masterCookie = `taskflow_session=${master.session.id}`;
+    const targetCookie = `taskflow_session=${target.session.id}`;
+    await createSession(target.user.id);
+    const originalHash = (await db.orm.public.User.where({ id: target.user.id }).first())!.passwordHash;
+
+    expect((await request(app).post(`/api/admin/users/${target.user.id}/force-password-change`)).status).toBe(401);
+    expect((await request(app)
+      .post(`/api/admin/users/${target.user.id}/force-password-change`)
+      .set("Cookie", `taskflow_session=${regular.session.id}`)).status).toBe(403);
+    expect((await request(app)
+      .post(`/api/admin/users/${master.user.id}/force-password-change`)
+      .set("Cookie", masterCookie)).status).toBe(403);
+    expect((await request(app)
+      .post(`/api/admin/users/${protectedTarget.user.id}/force-password-change`)
+      .set("Cookie", masterCookie)).status).toBe(403);
+    expect((await request(app)
+      .post(`/api/admin/users/${inactiveTarget.user.id}/force-password-change`)
+      .set("Cookie", masterCookie)).status).toBe(409);
+
+    const forced = await request(app)
+      .post(`/api/admin/users/${target.user.id}/force-password-change`)
+      .set("Cookie", masterCookie);
+    expect(forced.status).toBe(200);
+    expect(forced.body.user).toMatchObject({ id: target.user.id, status: "ACTIVE", mustChangePassword: true });
+    expect(forced.body).not.toHaveProperty("temporaryPassword");
+    expect(forced.body.user).not.toHaveProperty("passwordHash");
+    expect(JSON.stringify(forced.body)).not.toContain(target.session.id);
+
+    const stored = await db.orm.public.User.where({ id: target.user.id }).first();
+    expect(stored?.passwordHash).toBe(originalHash);
+    expect(stored?.mustChangePassword).toBe(true);
+    expect(await db.orm.public.Session.where({ userId: target.user.id }).all()).toHaveLength(0);
+    expect((await request(app).get("/api/auth/me").set("Cookie", targetCookie)).status).toBe(401);
+
+    const login = await request(app).post("/api/auth/login").send({
+      email: target.user.email,
+      password: "password123",
+    });
+    expect(login.status).toBe(200);
+    expect(login.body.user.mustChangePassword).toBe(true);
+    const loginCookie = String(login.headers["set-cookie"]?.[0]).split(";")[0];
+    expect((await request(app).get("/api/projects").set("Cookie", loginCookie)).status).toBe(403);
+
+    const changed = await request(app)
+      .patch("/api/auth/password")
+      .set("Cookie", loginCookie)
+      .send({ currentPassword: "password123", newPassword: "changed-after-forced-reset" });
+    expect(changed.status).toBe(200);
+    expect((await request(app).get("/api/projects").set("Cookie", loginCookie)).status).toBe(200);
   });
 });
 

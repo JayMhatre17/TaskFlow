@@ -5,7 +5,7 @@ import {
   projectDateRangeSchema,
   projectQuerySchema,
   UpdateProjectSchema,
-} from "../schema/project.schema";
+} from "../schema/project.schema.js";
 import {
   createProject,
   deleteProject,
@@ -15,8 +15,8 @@ import {
   getProjects,
   restoreProject,
   updateProject,
-} from "../service/project.service";
-import { ApiError } from "../errors/api.error";
+} from "../service/project.service.js";
+import { ApiError } from "../errors/api.error.js";
 
 export const getDeletedProjectsController = async (
   req: Request,

@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import { ApiError } from "../errors/api.error";
+import { ApiError } from "../errors/api.error.js";
 import {
   createProjectInvitationSchema,
   projectInvitationActionSchema,
-} from "../schema/projectInvitation.schema";
+} from "../schema/projectInvitation.schema.js";
 import {
   acceptProjectInvitation,
   cancelProjectInvitation,
@@ -11,7 +11,7 @@ import {
   getMyProjectInvitations,
   getProjectInvitationsForOwner,
   rejectProjectInvitation,
-} from "../service/projectInvitation.service";
+} from "../service/projectInvitation.service.js";
 
 const toPublicProjectInvitation = (invitation: {
   id: number;

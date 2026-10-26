@@ -1,15 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
-import { ApiError } from "../errors/api.error";
+import { ApiError } from "../errors/api.error.js";
 import {
   createTaskCommentSchema,
   updateTaskCommentSchema,
-} from "../schema/taskComment.schema";
+} from "../schema/taskComment.schema.js";
 import {
   createTaskComment,
   deleteTaskComment,
   getTaskComments,
   updateTaskComment,
-} from "../service/taskComment.service";
+} from "../service/taskComment.service.js";
 
 export const parsePositiveId = (value: string | string[], label: string): number => {
   if (typeof value !== "string") {

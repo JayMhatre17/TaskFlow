@@ -1,22 +1,22 @@
 import { Temporal } from "@js-temporal/polyfill";
-import { db } from "../prisma/db";
+import { db } from "../prisma/db.js";
 import {
   AssignTaskInput,
   CreateTaskInput,
   TaskQueryInput,
   UpdateTaskInput,
-} from "../schema/task.schema";
+} from "../schema/task.schema.js";
 import { or } from "@prisma/orm-postgres/orm-client";
-import { applyTaskSorting } from "./tasks/taskQuery.utils";
+import { applyTaskSorting } from "./tasks/taskQuery.utils.js";
 import {
   getTaskPriorityLabel,
   getTaskStatusLabel,
   TASK_PRIORITY,
   TASK_STATUS,
-} from "../constants/task.constants";
-import { ApiError } from "../errors/api.error";
-import { getProjectAccess } from "./projectAccess.service";
-import { createNotificationWithClient } from "./notification.service";
+} from "../constants/task.constants.js";
+import { ApiError } from "../errors/api.error.js";
+import { getProjectAccess } from "./projectAccess.service.js";
+import { createNotificationWithClient } from "./notification.service.js";
 type Task = Awaited<ReturnType<typeof db.orm.public.Task.first>>;
 
 type TaskRecord = NonNullable<Task>;

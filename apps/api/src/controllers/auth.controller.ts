@@ -3,16 +3,16 @@ import {
   changePasswordSchema,
   loginSchema,
   updateProfileSchema,
-} from "../schema/auth.schema";
-import { changePassword, login, updateProfile } from "../service/auth.service";
+} from "../schema/auth.schema.js";
+import { changePassword, login, updateProfile } from "../service/auth.service.js";
 import {
   createSession,
   deleteSession,
   getSessionById,
   isSessionExpired,
-} from "../service/session.service";
-import { ApiError } from "../errors/api.error";
-import { db } from "../prisma/db";
+} from "../service/session.service.js";
+import { ApiError } from "../errors/api.error.js";
+import { db } from "../prisma/db.js";
 
 const SESSION_COOKIE_NAME = "taskflow_session";
 

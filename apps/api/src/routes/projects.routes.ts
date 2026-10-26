@@ -8,22 +8,22 @@ import {
   getProjetByIdController,
   updateProjectController,
   restoreProjectController,
-} from "../controllers/projects.controller";
-import { getTasksByProjectController } from "../controllers/task.controller";
-import { requireAuth } from "../middlewares/require-auth.middleware";
+} from "../controllers/projects.controller.js";
+import { getTasksByProjectController } from "../controllers/task.controller.js";
+import { requireAuth } from "../middlewares/require-auth.middleware.js";
 import {
   addProjectMemberController,
   getProjectMembersController,
   removeProjectMemberController,
   searchProjectMemberCandidatesController,
-} from "../controllers/projectMember.controller";
+} from "../controllers/projectMember.controller.js";
 import {
   cancelProjectInvitationController,
   createProjectInvitationController,
   getProjectInvitationsForProjectController,
   getMyProjectInvitationsController,
   projectInvitationActionController,
-} from "../controllers/projectInvitation.controller";
+} from "../controllers/projectInvitation.controller.js";
 
 const router = Router();
 

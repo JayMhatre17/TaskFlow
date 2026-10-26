@@ -3,13 +3,13 @@ import {
   addProjectMember,
   getProjectMembers,
   removeProjectMember,
-} from "../service/projectMember.service";
+} from "../service/projectMember.service.js";
 import {
   addProjectMemberSchema,
   searchProjectMemberCandidatesSchema,
-} from "../schema/projectMember.schema";
-import { ApiError } from "../errors/api.error";
-import { searchProjectMemberCandidates } from "../service/projectMember.service";
+} from "../schema/projectMember.schema.js";
+import { ApiError } from "../errors/api.error.js";
+import { searchProjectMemberCandidates } from "../service/projectMember.service.js";
 
 export const searchProjectMemberCandidatesController = async (
   req: Request,

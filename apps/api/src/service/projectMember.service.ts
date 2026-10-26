@@ -1,7 +1,7 @@
-import { ApiError } from "../errors/api.error";
-import { db } from "../prisma/db";
-import { createNotificationWithClient } from "./notification.service";
-import { getProjectAccess } from "./projectAccess.service";
+import { ApiError } from "../errors/api.error.js";
+import { db } from "../prisma/db.js";
+import { createNotificationWithClient } from "./notification.service.js";
+import { getProjectAccess } from "./projectAccess.service.js";
 import { not, or } from "@prisma/orm-postgres/orm-client";
 
 const PROJECT_MEMBER_SEARCH_LIMIT = 10;

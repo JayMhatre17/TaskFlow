@@ -1,5 +1,5 @@
-import { db } from "../../prisma/db";
-import { ProjectQueryInput } from "../../schema/project.schema";
+import { db } from "../../prisma/db.js";
+import { ProjectQueryInput } from "../../schema/project.schema.js";
 
 export const applyProjectSorting = (
   query: typeof db.orm.public.Project,

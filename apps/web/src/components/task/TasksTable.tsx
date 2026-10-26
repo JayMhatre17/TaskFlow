@@ -27,6 +27,13 @@ const formatTaskValue = (value: string) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+const taskStatusClass = {
+  TODO: "bg-muted text-muted-foreground",
+  IN_PROGRESS: "bg-primary/10 text-primary",
+  IN_REVIEW: "bg-warning/15 text-warning",
+  COMPLETED: "bg-success/15 text-success",
+} as const;
+
 const TasksTable = ({ tasks, pagination }: TasksTableProps) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -113,7 +120,11 @@ const TasksTable = ({ tasks, pagination }: TasksTableProps) => {
         </button>
       ),
       cell: ({ row }) => {
-        return <Badge>{formatTaskValue(row.original.status)}</Badge>;
+        return (
+          <Badge className={taskStatusClass[row.original.status]}>
+            {formatTaskValue(row.original.status)}
+          </Badge>
+        );
       },
     },
     {

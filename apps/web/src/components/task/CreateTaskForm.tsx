@@ -278,13 +278,13 @@ const TaskForm = ({
 
   if (createdTaskAssignment) {
     return (
-      <div className="space-y-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+      <div className="space-y-4 rounded-lg border border-warning/30 bg-warning/10 p-4">
         <div role="alert" className="space-y-1">
-          <p className="font-medium text-amber-950">
+          <p className="font-medium text-warning">
             The task was created, but assignment did not complete.
           </p>
-          <p className="text-sm text-amber-900">{createdTaskAssignment.error}</p>
-          <p className="text-sm text-amber-900">
+          <p className="text-sm text-warning">{createdTaskAssignment.error}</p>
+          <p className="text-sm text-warning">
             Retrying will assign the existing task; it will not create another one.
           </p>
         </div>
@@ -319,7 +319,7 @@ const TaskForm = ({
           <Input placeholder="Enter task title" {...register("title")} />
 
           {errors.title && (
-            <p className="mt-1 text-sm text-red-500">{errors.title.message}</p>
+            <p className="mt-1 text-sm text-destructive">{errors.title.message}</p>
           )}
         </div>
 
@@ -334,7 +334,7 @@ const TaskForm = ({
           />
 
           {errors.description && (
-            <p className="mt-1 text-sm text-red-500">
+            <p className="mt-1 text-sm text-destructive">
               {errors.description.message}
             </p>
           )}
@@ -395,7 +395,7 @@ const TaskForm = ({
           )}
           {assignmentError && (
             <div className="space-y-1" role="alert">
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-destructive">
                 Could not load eligible assignees: {assignmentError.message}
               </p>
               <Button
@@ -455,7 +455,7 @@ const TaskForm = ({
             <Input type="date" {...register("dueDate")} />
 
             {errors.dueDate && (
-              <p className="mt-1 text-sm text-red-500">
+              <p className="mt-1 text-sm text-destructive">
                 {errors.dueDate.message}
               </p>
             )}

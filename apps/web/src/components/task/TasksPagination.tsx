@@ -36,7 +36,7 @@ const TasksPagination = ({
 
   return (
     <div className="flex items-center justify-between">
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         Showing {start}–{end} of {total} tasks
       </p>
 

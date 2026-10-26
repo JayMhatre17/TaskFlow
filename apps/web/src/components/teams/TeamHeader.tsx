@@ -6,9 +6,9 @@ const TeamHeader = ({ projectId }: { projectId?: number }) => {
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Project Members</h1>
+        <h1 className="text-2xl font-bold text-foreground">Project Members</h1>
 
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           View and manage members for a project you own.
         </p>
       </div>

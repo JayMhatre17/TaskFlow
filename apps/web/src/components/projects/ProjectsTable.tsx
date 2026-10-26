@@ -8,6 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DataTable, {
   type DataTableFeatures,
 } from "@/components/common/DataTable";
+import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/basicFn";
 import type {
   Project,
@@ -133,6 +134,20 @@ const ProjectsTable = ({
           onSort={handleSort}
         />
       ),
+      cell: ({ getValue }) => {
+        const status = getValue();
+        return (
+          <Badge
+            className={
+              status === "Active"
+                ? "border-success/30 bg-success/10 text-success"
+                : "border-warning/30 bg-warning/10 text-warning"
+            }
+          >
+            {status}
+          </Badge>
+        );
+      },
     }),
     columnHelper.accessor("startDate", {
       header: () => (

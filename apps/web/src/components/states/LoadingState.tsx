@@ -13,11 +13,11 @@ const LoadingState = ({ message, fullHeight }: LoadingStateProps) => {
     >
       <Loader2
         size={28}
-        className="animate-spin text-gray-500"
+        className="animate-spin text-muted-foreground"
         aria-hidden="true"
       />
 
-      {message && <p className="mt-3 text-sm text-gray-500">{message}</p>}
+      {message && <p className="mt-3 text-sm text-muted-foreground">{message}</p>}
     </div>
   );
 };

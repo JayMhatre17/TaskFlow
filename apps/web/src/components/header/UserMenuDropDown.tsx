@@ -7,15 +7,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Loader2, LogOut, Settings, User } from "lucide-react";
+import { Loader2, LogOut, Moon, Settings, Sun, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useCurrentUser, useLogout } from "@/hooks/queries/useAuth";
 import { ApiError } from "@/lib/api/client";
 
 const UserMenu = () => {
+  const { resolvedTheme, setTheme } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const currentUserQuery = useCurrentUser();
@@ -56,18 +58,18 @@ const UserMenu = () => {
       <DropdownMenuTrigger
         render={
           <button
-            className="flex min-w-0 items-center gap-2 rounded-lg p-1.5 pr-2 hover:bg-gray-100 cursor-pointer"
+            className="flex min-w-0 items-center gap-2 rounded-lg p-1.5 pr-2 hover:bg-muted cursor-pointer"
             aria-label="User menu"
             disabled={isLoading || logoutMutation.isPending}
           />
         }
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold">
           {isLoading ? <Loader2 size={16} className="animate-spin" /> : initials}
         </div>
 
         <div className="hidden min-w-32 text-left sm:block">
-          <p className="max-w-40 truncate text-sm font-medium text-gray-900">
+          <p className="max-w-40 truncate text-sm font-medium text-foreground">
             {user?.name ??
               (isLoading
                 ? "Loading account..."
@@ -75,7 +77,7 @@ const UserMenu = () => {
                   ? "Signed out"
                   : "Account unavailable")}
           </p>
-          <p className="max-w-40 truncate text-xs text-gray-500">
+          <p className="max-w-40 truncate text-xs text-muted-foreground">
             {user?.email ??
               (isLoading
                 ? " "
@@ -87,6 +89,16 @@ const UserMenu = () => {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          aria-label="Toggle color theme"
+        >
+          <Sun className="dark:hidden" />
+          <Moon className="hidden dark:block" />
+          Toggle theme
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         {user ? (
           <>
             <DropdownMenuItem className="cursor-pointer">

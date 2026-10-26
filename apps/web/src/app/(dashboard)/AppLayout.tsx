@@ -55,7 +55,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar isMobileOpen={isMobileOpen} onMobileClose={setIsMobileOpen} />
+      <Sidebar
+        key={isMobileOpen ? "mobile-open" : "mobile-closed"}
+        isMobileOpen={isMobileOpen}
+        onMobileClose={setIsMobileOpen}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onMobileMenuClick={() => setIsMobileOpen(true)} />

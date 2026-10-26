@@ -6,7 +6,7 @@ const useProject = (id: number) => {
   return useQuery({
     queryKey: ["project", id],
     queryFn: () => getProject(id),
-    enabled: Number.isInteger(id),
+    enabled: Number.isSafeInteger(id) && id > 0,
   });
 };
 

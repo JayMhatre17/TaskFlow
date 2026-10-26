@@ -13,7 +13,7 @@ import {
 const TeamPagination = () => {
   return (
     <div className="flex items-center justify-between">
-      <p className="text-sm text-gray-500">Showing 1–4 of 12 members</p>
+      <p className="text-sm text-muted-foreground">Showing 1–4 of 12 members</p>
 
       <Pagination className="w-auto">
         <PaginationContent>

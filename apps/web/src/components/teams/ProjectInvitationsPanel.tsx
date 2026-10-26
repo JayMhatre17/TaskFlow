@@ -59,12 +59,12 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
   };
 
   return (
-    <section className="min-w-0 space-y-5 rounded-xl border bg-white p-6">
+    <section className="min-w-0 space-y-5 rounded-xl border bg-card p-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-foreground">
           Pending invitations
         </h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Create a shareable link for an existing or future TaskFlow user. Invitations expire after seven days.
         </p>
       </div>
@@ -93,7 +93,7 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
           {form.formState.errors.email && (
             <p
               id="invitation-email-error"
-              className="mt-1 text-sm text-red-500"
+              className="mt-1 text-sm text-destructive"
               role="alert"
             >
               {form.formState.errors.email.message}
@@ -111,7 +111,7 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
       </form>
 
       {shareLink && (
-        <div className="space-y-2 rounded-lg border bg-gray-50 p-3">
+        <div className="space-y-2 rounded-lg border bg-muted p-3">
           <label htmlFor="invitation-link" className="text-sm font-medium">
             Shareable invitation link
           </label>
@@ -121,7 +121,7 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
               Copy
             </Button>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Recipients will be asked to sign in before they can accept or decline.
           </p>
         </div>
@@ -156,7 +156,7 @@ const ProjectInvitationsPanel = ({ projectId }: { projectId: number }) => {
               >
                 <div className="min-w-0">
                   <p className="break-all font-medium">{invitation.email}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Expires {new Date(invitation.expiresAt).toLocaleDateString()}
                   </p>
                 </div>

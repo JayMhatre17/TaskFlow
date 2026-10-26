@@ -49,7 +49,7 @@ const DeleteTaskDialog = ({
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isDeleting}
-            className="bg-destructive text-white hover:bg-destructive/90 cursor-pointer"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
           >
             {isDeleting ? "Deleting..." : "Delete Task"}
           </AlertDialogAction>

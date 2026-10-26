@@ -24,14 +24,34 @@ const TaskChart = ({ data }: TaskChartProps) => {
     <div className="h-64 w-full min-w-0 max-w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
-          <CartesianGrid vertical={false} />
-          <XAxis dataKey="status" tickLine={false} axisLine={false} />
+          <CartesianGrid vertical={false} stroke="var(--border)" />
+          <XAxis
+            dataKey="status"
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: "var(--muted-foreground)" }}
+          />
 
-          <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+          <YAxis
+            allowDecimals={false}
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: "var(--muted-foreground)" }}
+          />
 
-          <Tooltip />
+          <Tooltip
+            cursor={{ fill: "var(--muted)" }}
+            contentStyle={{
+              backgroundColor: "var(--popover)",
+              borderColor: "var(--border)",
+              color: "var(--popover-foreground)",
+              borderRadius: "var(--radius)",
+            }}
+            labelStyle={{ color: "var(--popover-foreground)" }}
+            itemStyle={{ color: "var(--popover-foreground)" }}
+          />
 
-          <Bar dataKey="value" radius={[6, 6, 0, 0]} />
+          <Bar dataKey="value" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

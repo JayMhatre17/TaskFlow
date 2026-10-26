@@ -16,6 +16,13 @@ type TaskDetailsContentProps = {
   taskId: number;
 };
 
+const taskStatusClass = {
+  TODO: "bg-muted text-muted-foreground",
+  IN_PROGRESS: "bg-primary/10 text-primary",
+  IN_REVIEW: "bg-warning/15 text-warning",
+  COMPLETED: "bg-success/15 text-success",
+} as const;
+
 const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
   const { data: task, isPending, isError, error, refetch } = useTask(taskId);
 
@@ -50,7 +57,7 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <h1 className="min-w-0 break-words text-2xl font-bold [overflow-wrap:anywhere]">{task.title}</h1>
 
-            <Badge>{task.status}</Badge>
+            <Badge className={taskStatusClass[task.status]}>{task.status}</Badge>
           </div>
 
           {task.description && (
@@ -73,7 +80,7 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
 
       {/* Task information */}
       <div className="grid min-w-0 gap-6 lg:grid-cols-3">
-        <div className="min-w-0 rounded-xl border bg-white p-6 lg:col-span-2">
+        <div className="min-w-0 rounded-xl border bg-card p-6 lg:col-span-2">
           <h2 className="text-lg font-semibold">Task Information</h2>
 
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -119,7 +126,7 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
               <p className="text-sm text-muted-foreground">Status</p>
 
               <div className="mt-1">
-                <Badge>{task.status}</Badge>
+                <Badge className={taskStatusClass[task.status]}>{task.status}</Badge>
               </div>
             </div>
 
@@ -141,7 +148,7 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
         </div>
 
         {/* Summary */}
-        <div className="min-w-0 rounded-xl border bg-white p-6">
+        <div className="min-w-0 rounded-xl border bg-card p-6">
           <h2 className="text-lg font-semibold">Summary</h2>
 
           <div className="mt-6 space-y-5">

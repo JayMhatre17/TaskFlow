@@ -1,6 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import { loginSchema } from "../schema/auth.schema";
-import { login } from "../service/auth.service";
+import {
+  changePasswordSchema,
+  loginSchema,
+  updateProfileSchema,
+} from "../schema/auth.schema";
+import { changePassword, login, updateProfile } from "../service/auth.service";
 import {
   createSession,
   deleteSession,
@@ -40,6 +44,9 @@ export const loginController = async (
         id: user.id,
         email: user.email,
         name: user.name,
+        role: user.role,
+        isProtectedAdmin: user.isProtectedAdmin,
+        mustChangePassword: user.mustChangePassword,
       },
     });
   } catch (error) {
@@ -51,6 +58,44 @@ export const getCurrentUserController = (req: Request, res: Response) => {
   res.status(200).json({
     user: req.user!,
   });
+};
+
+export const updateCurrentUserController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const input = updateProfileSchema.parse(req.body);
+    const user = await updateProfile(req.user!.id, input.name);
+    return res.status(200).json({ user });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const changePasswordController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const input = changePasswordSchema.parse(req.body);
+    const sessionId = req.cookies?.[SESSION_COOKIE_NAME];
+    if (!sessionId) {
+      throw new ApiError(401, "Authentication required");
+    }
+
+    await changePassword(
+      req.user!.id,
+      sessionId,
+      input.currentPassword,
+      input.newPassword,
+    );
+    return res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    return next(error);
+  }
 };
 
 export const logoutController = async (

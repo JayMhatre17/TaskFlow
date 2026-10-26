@@ -6,9 +6,9 @@ const ProjectsHeader = () => {
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+        <h1 className="text-2xl font-bold text-foreground">Projects</h1>
 
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Manage and track your workspace projects.
         </p>
       </div>

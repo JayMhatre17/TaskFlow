@@ -5,6 +5,6 @@ export const useTask = (id: number) => {
   return useQuery({
     queryKey: ["task", id],
     queryFn: () => getTask(id),
-    enabled: Number.isInteger(id),
+    enabled: Number.isSafeInteger(id) && id > 0,
   });
 };

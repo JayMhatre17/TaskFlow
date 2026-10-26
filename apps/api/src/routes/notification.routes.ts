@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middlewares/require-auth.middleware";
+import { requireAuth, requirePasswordChangeComplete } from "../middlewares/require-auth.middleware";
 import {
   getMyNotificationsController,
   getUnreadNotificationCountController,
@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requirePasswordChangeComplete);
 
 router.get("/unread-count", getUnreadNotificationCountController);
 

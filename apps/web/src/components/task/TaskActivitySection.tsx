@@ -22,7 +22,7 @@ const TaskActivitySection = ({ taskId }: { taskId: number }) => {
   const currentUserQuery = useCurrentUser();
 
   return (
-    <section className="min-w-0 rounded-xl border bg-white p-6">
+    <section className="min-w-0 rounded-xl border bg-card p-6">
       <div>
         <h2 className="text-lg font-semibold">Activity</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -67,7 +67,7 @@ const TaskActivitySection = ({ taskId }: { taskId: number }) => {
                       </span>
                     </div>
                     {activity.description && (
-                      <p className="break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
+                      <p className="break-words text-sm text-foreground [overflow-wrap:anywhere]">
                         {activity.description}
                       </p>
                     )}

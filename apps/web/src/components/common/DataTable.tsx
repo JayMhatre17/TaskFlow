@@ -35,7 +35,7 @@ const DataTable = <TData extends RowData>({
   });
 
   return (
-    <div className="min-w-0 max-w-full rounded-xl border bg-white">
+    <div className="min-w-0 max-w-full rounded-xl border bg-card">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

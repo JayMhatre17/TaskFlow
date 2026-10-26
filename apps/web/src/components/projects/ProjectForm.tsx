@@ -83,7 +83,7 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
           <Input {...register("name")} />
 
           {errors.name && (
-            <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
+            <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>
           )}
         </div>
 
@@ -102,7 +102,7 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
           <Input type="date" {...register("startDate")} />
 
           {errors.startDate && (
-            <p className="mt-1 text-sm text-red-500">
+            <p className="mt-1 text-sm text-destructive">
               {errors.startDate.message}
             </p>
           )}
@@ -114,7 +114,7 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
           <Input type="date" {...register("dueDate")} />
 
           {errors.dueDate && (
-            <p className="mt-1 text-sm text-red-500">
+            <p className="mt-1 text-sm text-destructive">
               {errors.dueDate.message}
             </p>
           )}

@@ -49,7 +49,7 @@ const TaskCommentsSection = ({ taskId }: { taskId: number }) => {
   };
 
   return (
-    <section className="min-w-0 rounded-xl border bg-white p-6">
+    <section className="min-w-0 rounded-xl border bg-card p-6">
       <div>
         <h2 className="text-lg font-semibold">Comments</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -90,7 +90,7 @@ const TaskCommentsSection = ({ taskId }: { taskId: number }) => {
           </Button>
         </div>
         {createCommentMutation.isError && (
-          <p className="text-sm text-red-600" role="alert">
+          <p className="text-sm text-destructive" role="alert">
             {createCommentMutation.error.message || "Unable to add comment."}
           </p>
         )}
@@ -119,9 +119,9 @@ const TaskCommentsSection = ({ taskId }: { taskId: number }) => {
               );
 
               return (
-                <li key={comment.id} className="rounded-lg bg-gray-50 p-4">
+                <li key={comment.id} className="rounded-lg bg-muted p-4">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="break-words text-sm font-medium text-gray-900 [overflow-wrap:anywhere]">
+                    <p className="break-words text-sm font-medium text-foreground [overflow-wrap:anywhere]">
                       {authorLabel}
                     </p>
                     <time
@@ -131,7 +131,7 @@ const TaskCommentsSection = ({ taskId }: { taskId: number }) => {
                       {formatTimestamp(comment.createdAt)}
                     </time>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-700">
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
                     {comment.content}
                   </p>
                 </li>

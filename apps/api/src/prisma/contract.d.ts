@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'0211fdb89d8c1ec1b516830735cd77f94b722cb4b67e7c9a3a03df521c2c5671'>;
+  StorageHashBase<'fee508c88105519ddacaa4d5f10902131d7ac5755d8b21f1f1e5fc2022294a49'>;
 export type ExecutionHash =
   ExecutionHashBase<'4f5b169da2781186fe20ac5d273958951da2da273e856be19d42cd02c7c540d9'>;
 export type ProfileHash =
@@ -410,6 +410,7 @@ export type FieldOutputTypes = {
       readonly passwordHash: CodecTypes['pg/text@1']['output'];
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'ACTIVE' | 'DEACTIVATED' | 'PENDING_DELETION' | 'DELETED';
+      readonly mustChangePassword: CodecTypes['pg/bool@1']['output'];
       readonly isProtectedAdmin: CodecTypes['pg/bool@1']['output'];
       readonly deactivatedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
       readonly deletionRequestedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
@@ -590,6 +591,7 @@ export type FieldInputTypes = {
       readonly passwordHash: CodecTypes['pg/text@1']['input'];
       readonly role: 'USER' | 'ADMIN';
       readonly status: 'ACTIVE' | 'DEACTIVATED' | 'PENDING_DELETION' | 'DELETED';
+      readonly mustChangePassword: CodecTypes['pg/bool@1']['input'];
       readonly isProtectedAdmin: CodecTypes['pg/bool@1']['input'];
       readonly deactivatedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
       readonly deletionRequestedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
@@ -771,6 +773,7 @@ export type StorageColumnTypes = {
       readonly email: CodecTypes['pg/text@1']['output'];
       readonly id: CodecTypes['pg/int4@1']['output'];
       readonly isProtectedAdmin: CodecTypes['pg/bool@1']['output'];
+      readonly mustChangePassword: CodecTypes['pg/bool@1']['output'];
       readonly name: CodecTypes['pg/text@1']['output'];
       readonly passwordHash: CodecTypes['pg/text@1']['output'];
       readonly role: 'USER' | 'ADMIN';
@@ -951,6 +954,7 @@ export type StorageColumnInputTypes = {
       readonly email: CodecTypes['pg/text@1']['input'];
       readonly id: CodecTypes['pg/int4@1']['input'];
       readonly isProtectedAdmin: CodecTypes['pg/bool@1']['input'];
+      readonly mustChangePassword: CodecTypes['pg/bool@1']['input'];
       readonly name: CodecTypes['pg/text@1']['input'];
       readonly passwordHash: CodecTypes['pg/text@1']['input'];
       readonly role: 'USER' | 'ADMIN';
@@ -969,6 +973,7 @@ export namespace Models {
     passwordHash: CodecTypes['pg/text@1']['output'];
     role: 'USER' | 'ADMIN';
     status: 'ACTIVE' | 'DEACTIVATED' | 'PENDING_DELETION' | 'DELETED';
+    mustChangePassword: CodecTypes['pg/bool@1']['output'];
     isProtectedAdmin: CodecTypes['pg/bool@1']['output'];
     deactivatedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
     deletionRequestedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
@@ -2685,6 +2690,15 @@ type ContractBase = Omit<
                     readonly value: DefaultLiteralValue<'pg/text@1', 'ACTIVE'>;
                   };
                 };
+                readonly mustChangePassword: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
                 readonly isProtectedAdmin: {
                   readonly nativeType: 'bool';
                   readonly codecId: 'pg/bool@1';
@@ -4010,6 +4024,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly mustChangePassword: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
               readonly isProtectedAdmin: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
@@ -4280,6 +4298,7 @@ type ContractBase = Omit<
                 readonly passwordHash: { readonly column: 'passwordHash' };
                 readonly role: { readonly column: 'role' };
                 readonly status: { readonly column: 'status' };
+                readonly mustChangePassword: { readonly column: 'mustChangePassword' };
                 readonly isProtectedAdmin: { readonly column: 'isProtectedAdmin' };
                 readonly deactivatedAt: { readonly column: 'deactivatedAt' };
                 readonly deletionRequestedAt: { readonly column: 'deletionRequestedAt' };

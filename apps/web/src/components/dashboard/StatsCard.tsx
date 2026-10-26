@@ -17,19 +17,19 @@ const StatsCard = ({
   href,
 }: StatCardProps) => {
   const content = (
-    <div className="min-w-0 rounded-xl border bg-white p-5">
+    <div className="min-w-0 rounded-xl border bg-card p-5">
       <div className="flex items-center justify-between">
-        <p className="min-w-0 break-words text-sm text-gray-500">{label}</p>
+        <p className="min-w-0 break-words text-sm text-muted-foreground">{label}</p>
 
         {Icon && (
-          <Icon size={20} className="text-gray-400" aria-hidden="true" />
+          <Icon size={20} className="text-muted-foreground" aria-hidden="true" />
         )}
       </div>
 
-      <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
+      <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
 
       {description && (
-        <p className="mt-1 text-xs text-gray-500">{description}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
       )}
     </div>
   );

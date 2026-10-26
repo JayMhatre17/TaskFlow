@@ -89,7 +89,7 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
     <FormProvider {...form}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="min-w-0">
-          <p className="mb-2 text-sm text-gray-500">
+          <p className="mb-2 text-sm text-muted-foreground">
             Add an existing TaskFlow user to <span className="break-words font-medium [overflow-wrap:anywhere]">{project.name}</span>.
           </p>
           <label htmlFor="member-search" className="mb-2 block text-sm font-medium">
@@ -109,7 +109,7 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
             }}
             aria-describedby="member-search-help"
           />
-          <p id="member-search-help" className="mt-1 text-sm text-gray-500">
+          <p id="member-search-help" className="mt-1 text-sm text-muted-foreground">
             Enter at least two characters. Results are limited to eligible users who are not already active project members.
           </p>
 
@@ -117,7 +117,7 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
             <div className="mt-3 flex items-center justify-between rounded-lg border p-3">
               <div>
                 <p className="break-words font-medium [overflow-wrap:anywhere]">{selectedCandidate.name}</p>
-                <p className="break-all text-sm text-gray-500">{selectedCandidate.email}</p>
+                <p className="break-all text-sm text-muted-foreground">{selectedCandidate.email}</p>
               </div>
               <Button
                 type="button"
@@ -131,7 +131,7 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
               </Button>
             </div>
           ) : searchText.trim().length < 2 ? (
-            <p className="mt-3 text-sm text-gray-500" role="status">
+            <p className="mt-3 text-sm text-muted-foreground" role="status">
               Search by at least two characters.
             </p>
           ) : candidatesQuery.isPending || candidatesQuery.isFetching ? (
@@ -163,7 +163,7 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
                 <li key={candidate.id}>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 focus-visible:bg-gray-50"
+                    className="w-full px-3 py-2 text-left hover:bg-muted focus-visible:bg-muted"
                     onClick={() => {
                       setSelectedCandidate(candidate);
                       setValue("userId", String(candidate.id), {
@@ -172,7 +172,7 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
                     }}
                   >
                     <span className="block break-words font-medium [overflow-wrap:anywhere]">{candidate.name}</span>
-                    <span className="block break-all text-sm text-gray-500">
+                    <span className="block break-all text-sm text-muted-foreground">
                       {candidate.email}
                     </span>
                   </button>
@@ -181,7 +181,7 @@ const AddMemberForm = ({ projectId }: { projectId: number }) => {
             </ul>
           )}
           {errors.userId && (
-            <p className="mt-1 text-sm text-red-500" role="alert">
+            <p className="mt-1 text-sm text-destructive" role="alert">
               {errors.userId.message}
             </p>
           )}

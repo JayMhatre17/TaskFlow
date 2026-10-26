@@ -75,7 +75,9 @@ const TeamContent = ({ initialProjectId }: { initialProjectId?: number }) => {
           }
         >
           <SelectTrigger id="team-project" className="w-full">
-            <SelectValue placeholder="Select a project" />
+            <SelectValue placeholder="Select a project">
+              {selectedProject.name}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {projectsQuery.data.map((project) => (

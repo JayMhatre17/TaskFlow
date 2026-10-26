@@ -11,6 +11,7 @@ export default async function TeamPage({
 
   return (
     <TeamContent
+      key={parsedProjectId ?? "default-project"}
       initialProjectId={
         Number.isSafeInteger(parsedProjectId) && parsedProjectId > 0
           ? parsedProjectId

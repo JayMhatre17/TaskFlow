@@ -3,6 +3,8 @@ import { Temporal } from "@js-temporal/polyfill";
 import request from "supertest";
 import app from "../src/app";
 import { db } from "../src/prisma/db";
+import { createSession } from "../src/service/session.service";
+import { hashpassword } from "../src/utils/password";
 import {
   authenticatedRequestWithSession,
   createAuthenticatedAgent,
@@ -19,20 +21,41 @@ const expectInvitationResponseToBePublic = (
 
 describe("project invitation response contracts", () => {
   it("omits token hashes from invitation responses and returns the owner share token", async () => {
-    const owner = await createAuthenticatedAgent();
-    const recipient = await createAuthenticatedAgent();
-    const rejectedRecipient = await createAuthenticatedAgent();
-    const projectMember = await createAuthenticatedAgent();
-    const project = await db.orm.public.Project.create({
-      name: `[TEST] Invitation response ${Date.now()}`,
-      description: "Invitation response contract test",
-      status: "Active",
-      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
-      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
-      ownerId: owner.user.id,
-    });
+    const fixtures: {
+      user: { id: number; email: string };
+      sessionId?: string;
+    }[] = [];
+    let projectId: number | undefined;
 
     try {
+      const fixturePasswordHash = await hashpassword("invitation-fixture");
+      const createAuthenticatedFixture = async (label: string) => {
+        const user = await db.orm.public.User.create({
+          name: `Invitation ${label}`,
+          email: `invitation-${label}-${Date.now()}-${Math.random()}@example.com`,
+          passwordHash: fixturePasswordHash,
+        });
+        const fixture: (typeof fixtures)[number] = { user };
+        fixtures.push(fixture);
+        const session = await createSession(user.id);
+        fixture.sessionId = session.id;
+        return { user, session };
+      };
+
+      const owner = await createAuthenticatedFixture("owner");
+      const recipient = await createAuthenticatedFixture("recipient");
+      const rejectedRecipient = await createAuthenticatedFixture("rejected");
+      const projectMember = await createAuthenticatedFixture("member");
+      const project = await db.orm.public.Project.create({
+        name: `[TEST] Invitation response ${Date.now()}`,
+        description: "Invitation response contract test",
+        status: "Active",
+        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+        dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+        ownerId: owner.user.id,
+      });
+      projectId = project.id;
+
       await db.orm.public.ProjectMember.create({
         projectId: project.id,
         userId: projectMember.user.id,
@@ -130,11 +153,15 @@ describe("project invitation response contracts", () => {
       expect(remainingOutgoingResponse.status).toBe(200);
       expect(remainingOutgoingResponse.body.invitations).toEqual([]);
     } finally {
-      await db.orm.public.Project.where({ id: project.id }).delete();
-      await owner.cleanup();
-      await recipient.cleanup();
-      await rejectedRecipient.cleanup();
-      await projectMember.cleanup();
+      if (projectId !== undefined) {
+        await db.orm.public.Project.where({ id: projectId }).delete();
+      }
+      for (const fixture of fixtures) {
+        if (fixture.sessionId) {
+          await db.orm.public.Session.where({ id: fixture.sessionId }).delete();
+        }
+        await db.orm.public.User.where({ id: fixture.user.id }).delete();
+      }
     }
   });
 

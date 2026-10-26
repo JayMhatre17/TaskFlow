@@ -3,7 +3,7 @@ import { Temporal } from "@js-temporal/polyfill";
 import { describe, expect, it } from "vitest";
 import app from "../src/app";
 import { db } from "../src/prisma/db";
-import { createUser } from "../src/service/auth.service";
+import { hashpassword } from "../src/utils/password";
 import {
   authenticatedRequestWithSession,
   createAuthenticatedAgent,
@@ -11,21 +11,26 @@ import {
 
 describe("project member candidate search", () => {
   it("returns only eligible public candidates to a project owner with bounded results", async () => {
-    const owner = await createAuthenticatedAgent();
-    const member = await createAuthenticatedAgent();
-    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const searchTerm = `member-search-${suffix}`;
-    const candidates = [];
-    const project = await db.orm.public.Project.create({
-      name: `[TEST] Member search ${suffix}`,
-      description: "Project member search route test",
-      status: "Active",
-      startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
-      dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
-      ownerId: owner.user.id,
-    });
+    let owner: Awaited<ReturnType<typeof createAuthenticatedAgent>> | undefined;
+    let member: Awaited<ReturnType<typeof createAuthenticatedAgent>> | undefined;
+    let projectId: number | undefined;
+    const candidates: number[] = [];
 
     try {
+      owner = await createAuthenticatedAgent();
+      member = await createAuthenticatedAgent();
+      const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const searchTerm = `member-search-${suffix}`;
+      const project = await db.orm.public.Project.create({
+        name: `[TEST] Member search ${suffix}`,
+        description: "Project member search route test",
+        status: "Active",
+        startDate: Temporal.Instant.from("2026-01-01T00:00:00Z"),
+        dueDate: Temporal.Instant.from("2026-12-31T00:00:00Z"),
+        ownerId: owner.user.id,
+      });
+      projectId = project.id;
+
       await db.orm.public.ProjectMember.create({
         projectId: project.id,
         userId: member.user.id,
@@ -33,10 +38,15 @@ describe("project member candidate search", () => {
         removedAt: null,
       });
 
-      const activeMemberCandidate = await createUser(
+      // These accounts are never authenticated in the test, so one valid hash
+      // can be shared instead of running Argon2 for every search fixture.
+      const candidatePasswordHash = await hashpassword("candidate-fixture");
+      const createCandidate = (name: string, email: string) =>
+        db.orm.public.User.create({ name, email, passwordHash: candidatePasswordHash });
+
+      const activeMemberCandidate = await createCandidate(
         `${searchTerm} Already Member`,
         `${searchTerm}-member@example.com`,
-        "password123",
       );
       candidates.push(activeMemberCandidate.id);
       await db.orm.public.ProjectMember.create({
@@ -46,10 +56,9 @@ describe("project member candidate search", () => {
         removedAt: null,
       });
 
-      const inactiveCandidate = await createUser(
+      const inactiveCandidate = await createCandidate(
         `${searchTerm} Inactive`,
         `${searchTerm}-inactive@example.com`,
-        "password123",
       );
       candidates.push(inactiveCandidate.id);
       await db.orm.public.User.where({ id: inactiveCandidate.id }).update({
@@ -57,10 +66,9 @@ describe("project member candidate search", () => {
       });
 
       for (let index = 0; index < 12; index += 1) {
-        const user = await createUser(
+        const user = await createCandidate(
           `${searchTerm} Candidate ${index}`,
           `${searchTerm}-${index}@example.com`,
-          "password123",
         );
         candidates.push(user.id);
       }
@@ -130,12 +138,14 @@ describe("project member candidate search", () => {
       );
       expect(unauthenticatedResponse.status).toBe(401);
     } finally {
-      await db.orm.public.Project.where({ id: project.id }).delete();
+      if (projectId !== undefined) {
+        await db.orm.public.Project.where({ id: projectId }).delete();
+      }
       for (const candidateId of candidates) {
         await db.orm.public.User.where({ id: candidateId }).delete();
       }
-      await owner.cleanup();
-      await member.cleanup();
+      await owner?.cleanup();
+      await member?.cleanup();
     }
   });
 });

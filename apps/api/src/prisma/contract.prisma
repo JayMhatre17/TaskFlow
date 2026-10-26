@@ -20,6 +20,7 @@ model User {
 
   role   UserRole   @default(USER)
   status UserStatus @default(ACTIVE)
+  mustChangePassword Boolean @default(false)
 
   // Protected emergency Admin
   isProtectedAdmin Boolean @default(false)

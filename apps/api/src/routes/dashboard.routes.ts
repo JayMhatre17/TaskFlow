@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { getDashboardSummaryController } from "../controllers/dashboard.controller";
-import { requireAuth } from "../middlewares/require-auth.middleware";
+import { requireAuth, requirePasswordChangeComplete } from "../middlewares/require-auth.middleware";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requirePasswordChangeComplete);
 router.get("/summary", getDashboardSummaryController);
 
 export default router;

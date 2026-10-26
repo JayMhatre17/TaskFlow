@@ -67,21 +67,21 @@ export default function TrashContent() {
 
   return (
     <div className="space-y-8">
-      <section className="overflow-hidden rounded-xl border bg-white">
+      <section className="overflow-hidden rounded-xl border bg-card">
         <div className="border-b px-5 py-4">
-          <h2 className="font-semibold text-gray-900">Deleted projects</h2>
-          <p className="mt-1 text-sm text-gray-500">Restore a project to make it and its active tasks available again.</p>
+          <h2 className="font-semibold text-foreground">Deleted projects</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Restore a project to make it and its active tasks available again.</p>
         </div>
         {projects.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-500">No deleted projects.</p>
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">No deleted projects.</p>
         ) : (
           <ul className="divide-y">
             {projects.map((project) => (
               <li key={project.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-gray-900" title={project.name}>{project.name}</p>
-                  {project.description && <p className="mt-1 truncate text-sm text-gray-500" title={project.description}>{project.description}</p>}
-                  <p className="mt-1 text-xs text-gray-500">Deleted {formatDate(project.deletedAt)}</p>
+                  <p className="truncate font-medium text-foreground" title={project.name}>{project.name}</p>
+                  {project.description && <p className="mt-1 truncate text-sm text-muted-foreground" title={project.description}>{project.description}</p>}
+                  <p className="mt-1 text-xs text-muted-foreground">Deleted {formatDate(project.deletedAt)}</p>
                 </div>
                 <Button disabled={pendingProjectId === project.id} onClick={() => void restoreProjectClick(project)}>
                   {pendingProjectId === project.id ? <Loader2 className="animate-spin" /> : <RotateCcw />}
@@ -93,13 +93,13 @@ export default function TrashContent() {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-xl border bg-white">
+      <section className="overflow-hidden rounded-xl border bg-card">
         <div className="border-b px-5 py-4">
-          <h2 className="font-semibold text-gray-900">Deleted tasks</h2>
-          <p className="mt-1 text-sm text-gray-500">Tasks in deleted projects can be restored after restoring their project.</p>
+          <h2 className="font-semibold text-foreground">Deleted tasks</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Tasks in deleted projects can be restored after restoring their project.</p>
         </div>
         {tasks.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-500">No deleted tasks.</p>
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">No deleted tasks.</p>
         ) : (
           <ul className="divide-y">
             {tasks.map((task) => {
@@ -107,9 +107,9 @@ export default function TrashContent() {
               return (
                 <li key={task.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-gray-900" title={task.title}>{task.title}</p>
-                    <p className="mt-1 break-words text-sm text-gray-500 [overflow-wrap:anywhere]">{task.project.name} · Deleted {formatDate(task.deletedAt)}</p>
-                    {parentDeleted && <p className="mt-1 text-xs text-amber-700">Restore the project before restoring this task.</p>}
+                    <p className="truncate font-medium text-foreground" title={task.title}>{task.title}</p>
+                    <p className="mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">{task.project.name} · Deleted {formatDate(task.deletedAt)}</p>
+                    {parentDeleted && <p className="mt-1 text-xs text-warning">Restore the project before restoring this task.</p>}
                   </div>
                   <Button disabled={parentDeleted || pendingTaskId === task.id} onClick={() => void restoreTaskClick(task)}>
                     {pendingTaskId === task.id ? <Loader2 className="animate-spin" /> : <RotateCcw />}

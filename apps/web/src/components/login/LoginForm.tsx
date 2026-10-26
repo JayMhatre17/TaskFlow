@@ -29,6 +29,10 @@ const LoginForm = () => {
 
   useEffect(() => {
     if (currentUserQuery.isSuccess && currentUserQuery.data.user) {
+      if (currentUserQuery.data.user.mustChangePassword) {
+        router.replace("/change-password");
+        return;
+      }
       const returnTo = new URLSearchParams(window.location.search).get(
         "returnTo",
       );
@@ -53,7 +57,7 @@ const LoginForm = () => {
       <div>
         <label
           htmlFor="email"
-          className="mb-2 block text-sm font-medium text-gray-700"
+          className="mb-2 block text-sm font-medium text-foreground"
         >
           Email
         </label>
@@ -68,7 +72,7 @@ const LoginForm = () => {
           {...register("email")}
         />
         {errors.email && (
-          <p id="email-error" className="mt-1 text-sm text-red-500" role="alert">
+          <p id="email-error" className="mt-1 text-sm text-destructive" role="alert">
             {errors.email.message}
           </p>
         )}
@@ -78,14 +82,14 @@ const LoginForm = () => {
         <div className="mb-2 flex items-center justify-between">
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-foreground"
           >
             Password
           </label>
 
           <button
             type="button"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Forgot password?
           </button>
@@ -106,7 +110,7 @@ const LoginForm = () => {
           <button
             type="button"
             onClick={() => setShowPassword((value) => !value)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -115,7 +119,7 @@ const LoginForm = () => {
         {errors.password && (
           <p
             id="password-error"
-            className="mt-1 text-sm text-red-500"
+            className="mt-1 text-sm text-destructive"
             role="alert"
           >
             {errors.password.message}
@@ -124,7 +128,7 @@ const LoginForm = () => {
       </div>
 
       {loginMutation.isError && (
-        <p className="text-sm text-red-500" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {loginMutation.error.message}
         </p>
       )}
@@ -133,10 +137,10 @@ const LoginForm = () => {
         <input
           id="remember"
           type="checkbox"
-          className="h-4 w-4 rounded border-gray-300"
+          className="h-4 w-4 rounded border-input"
         />
 
-        <label htmlFor="remember" className="text-sm text-gray-600">
+        <label htmlFor="remember" className="text-sm text-muted-foreground">
           Remember me
         </label>
       </div>

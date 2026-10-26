@@ -43,7 +43,7 @@ const NotificationPopover = () => {
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -66,16 +66,16 @@ const NotificationPopover = () => {
           </div>
         </PopoverHeader>
         {markRead.isError || markAllRead.isError ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-destructive">
             Unable to update notifications. Please try again.
           </p>
         ) : null}
         {unreadCountQuery.isError || notificationsQuery.isError ? (
-          <p role="alert" className="py-4 text-center text-sm text-red-600">
+          <p role="alert" className="py-4 text-center text-sm text-destructive">
             Unable to load notifications. Please try again.
           </p>
         ) : notificationsQuery.isLoading ? (
-          <p className="py-6 text-center text-sm text-gray-500" role="status">
+          <p className="py-6 text-center text-sm text-muted-foreground" role="status">
             Loading notifications…
           </p>
         ) : notificationsQuery.data?.notifications.length ? (
@@ -83,11 +83,11 @@ const NotificationPopover = () => {
             {notificationsQuery.data.notifications.map((notification) => (
               <li
                 key={notification.id}
-                className={`flex items-start gap-3 py-3 ${notification.isRead ? "" : "bg-blue-50/60"}`}
+                className={`flex items-start gap-3 py-3 ${notification.isRead ? "" : "bg-primary/10"}`}
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{notification.title}</p>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {notification.message}
                   </p>
                 </div>
@@ -107,7 +107,7 @@ const NotificationPopover = () => {
             ))}
           </ul>
         ) : (
-          <p className="py-6 text-center text-sm text-gray-500">
+          <p className="py-6 text-center text-sm text-muted-foreground">
             No notifications
           </p>
         )}

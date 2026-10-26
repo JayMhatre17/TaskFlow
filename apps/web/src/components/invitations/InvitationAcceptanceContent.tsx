@@ -192,10 +192,10 @@ const InvitationAcceptanceContent = () => {
   if (completedAction === "REJECT") {
     return (
       <div className="space-y-4 text-center">
-        <h1 className="text-xl font-semibold text-gray-900">
+        <h1 className="text-xl font-semibold text-foreground">
           Invitation declined
         </h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           You declined this project invitation.
         </p>
         <Button type="button" onClick={() => router.replace("/dashboard")}>
@@ -208,10 +208,10 @@ const InvitationAcceptanceContent = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">
+        <h1 className="text-xl font-semibold text-foreground">
           Project invitation
         </h1>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-sm text-muted-foreground">
           You are signed in as{" "}
           <span className="font-medium">{currentUserQuery.data.user.name}</span>
           {getDistinctUserEmail(
@@ -225,11 +225,11 @@ const InvitationAcceptanceContent = () => {
       </div>
 
       {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-          <p className="font-medium text-red-800" role="alert">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+          <p className="font-medium text-destructive" role="alert">
             {actionError.title}
           </p>
-          <p className="mt-1 text-sm text-red-700">{actionError.description}</p>
+          <p className="mt-1 text-sm text-destructive">{actionError.description}</p>
           {actionError.retryable && (
             <Button
               type="button"

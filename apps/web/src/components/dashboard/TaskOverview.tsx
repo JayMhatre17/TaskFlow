@@ -11,23 +11,23 @@ const TaskOverview = ({ counts }: { counts: DashboardSummary["taskStatusCounts"]
   ];
   const totalTasks = taskStats.reduce((total, task) => total + task.value, 0);
   return (
-    <div className="min-w-0 rounded-xl border bg-white p-5">
+    <div className="min-w-0 rounded-xl border bg-card p-5">
       <div>
-        <h2 className="font-semibold text-gray-900">Task Overview</h2>
+        <h2 className="font-semibold text-foreground">Task Overview</h2>
 
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Overview of your current tasks.
         </p>
       </div>
 
       <div className="mt-6">
-        <p className="text-sm text-gray-500">Total Tasks</p>
+        <p className="text-sm text-muted-foreground">Total Tasks</p>
 
-        <p className="mt-1 text-3xl font-bold text-gray-900">{totalTasks}</p>
+        <p className="mt-1 text-3xl font-bold text-foreground">{totalTasks}</p>
       </div>
       <div className="mt-4 min-w-0 max-w-full">
         {totalTasks === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-500">
+          <p className="py-10 text-center text-sm text-muted-foreground">
             No tasks in your projects yet.
           </p>
         ) : (
@@ -42,10 +42,10 @@ const TaskOverview = ({ counts }: { counts: DashboardSummary["taskStatusCounts"]
           <Link
             key={task.filter}
             href={`/tasks?status=${task.filter}`}
-            className="min-w-0 rounded-md px-2 py-2 text-sm hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 rounded-md px-2 py-2 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <span className="block break-words text-gray-500">{task.status}</span>
-            <span className="font-semibold text-gray-900">{task.value}</span>
+            <span className="block break-words text-muted-foreground">{task.status}</span>
+            <span className="font-semibold text-foreground">{task.value}</span>
           </Link>
         ))}
       </nav>

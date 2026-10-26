@@ -69,7 +69,7 @@ const SelectRHF = ({
               </Select>
 
               {fieldState.error && (
-                <p className="mt-1 text-sm text-red-500">
+                <p className="mt-1 text-sm text-destructive">
                   {fieldState.error.message}
                 </p>
               )}

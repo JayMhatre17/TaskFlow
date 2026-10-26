@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCurrentUser } from "@/hooks/queries/useAuth";
 import { ApiError } from "@/lib/api/client";
@@ -16,6 +16,11 @@ const DashboardAuthGate = ({ children }: DashboardAuthGateProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const currentUserQuery = useCurrentUser();
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const isUnauthenticated =
     currentUserQuery.error instanceof ApiError &&
     currentUserQuery.error.status === 401;
@@ -27,11 +32,26 @@ const DashboardAuthGate = ({ children }: DashboardAuthGateProps) => {
         ? getProjectEditLoginPath(Number(projectEditMatch[1]))
         : "/login";
       router.replace(loginPath);
+      return;
     }
-  }, [isUnauthenticated, pathname, router]);
+    if (currentUserQuery.data?.user.mustChangePassword) {
+      router.replace("/change-password");
+    }
+  }, [currentUserQuery.data?.user.mustChangePassword, isUnauthenticated, pathname, router]);
+
+  // Keep the server render and the browser's first render identical. Auth query
+  // state is client-owned and can differ after hydration (for example on SPA
+  // navigation), so use it only after the client has mounted.
+  if (!isHydrated) {
+    return <LoadingState fullHeight message="Checking your session..." />;
+  }
 
   if (isUnauthenticated) {
     return <LoadingState fullHeight message="Redirecting to sign in..." />;
+  }
+
+  if (currentUserQuery.data?.user.mustChangePassword) {
+    return <LoadingState fullHeight message="Redirecting to password setup..." />;
   }
 
   if (currentUserQuery.isError) {

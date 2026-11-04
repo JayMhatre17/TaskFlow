@@ -19,15 +19,31 @@ export const createUser = async (
 };
 
 export const login = async (email: string, password: string) => {
+  const dbStart = performance.now();
+
   const user = await getUserByEmail(email);
 
+  const dbDuration = performance.now() - dbStart;
+
   if (!user) {
+    console.log(`[LOGIN] Database lookup: ${dbDuration.toFixed(2)}ms`);
     throw new ApiError(401, "Invalid email or password");
   }
+
   if (user.status !== "ACTIVE") {
+    console.log(`[LOGIN] Database lookup: ${dbDuration.toFixed(2)}ms`);
     throw new ApiError(401, "Invalid email or password");
   }
+
+  const argonStart = performance.now();
+
   const isPasswordValid = await verifypassword(password, user.passwordHash);
+
+  const argonDuration = performance.now() - argonStart;
+
+  console.log(
+    `[LOGIN] DB: ${dbDuration.toFixed(2)}ms | Argon2: ${argonDuration.toFixed(2)}ms`,
+  );
 
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid email or password");
@@ -73,7 +89,10 @@ export const changePassword = async (
   }
 
   if (await verifypassword(newPassword, user.passwordHash)) {
-    throw new ApiError(400, "New password must be different from current password");
+    throw new ApiError(
+      400,
+      "New password must be different from current password",
+    );
   }
 
   const newPasswordHash = await hashpassword(newPassword);

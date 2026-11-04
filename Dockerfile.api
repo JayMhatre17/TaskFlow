@@ -1,0 +1,46 @@
+
+# Stage 1: Build the API
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copy workspace manifests first for dependency caching
+COPY package.json yarn.lock ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+
+# Install dependencies needed to build the API
+RUN yarn install --frozen-lockfile && yarn cache clean
+
+# Copy API source and compile TypeScript
+COPY apps/api ./apps/api
+
+WORKDIR /app/apps/api
+RUN yarn build
+
+
+# Stage 2: Production runtime
+FROM node:22-alpine AS runtime
+
+WORKDIR /app
+
+# Install only the API's production dependencies
+COPY apps/api/package.json ./api-package.json
+COPY yarn.lock ./yarn.lock
+
+RUN test "$(yarn --version)" = "1.22.22" \
+    && node -e "const fs = require('node:fs'); const p = require('./api-package.json'); fs.writeFileSync('package.json', JSON.stringify({ name: p.name, version: p.version, type: p.type, dependencies: p.dependencies }, null, 2));" \
+    && yarn install --production --frozen-lockfile \
+    && yarn cache clean
+
+# Copy compiled API output from the builder
+COPY --from=builder /app/apps/api/dist ./dist
+
+# Allow the unprivileged runtime user to read and run the application
+RUN chown -R node:node /app
+
+USER node
+
+EXPOSE 4000
+
+CMD ["node", "dist/server.js"]

@@ -24,10 +24,13 @@ export class ApiError extends Error {
     this.errors = errors;
   }
 }
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "/"
+    : process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL is not configured");
+  throw new Error("NEXT_PUBLIC_API_URL is not configured for development");
 }
 
 const apiClient = axios.create({

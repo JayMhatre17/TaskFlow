@@ -1,0 +1,55 @@
+name: TaskFlow CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-check:
+    name: Build and check workspaces
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Yarn Classic 1.22.22
+        run: npm install --global yarn@1.22.22
+
+      - name: Locate Yarn cache
+        id: yarn-cache-dir
+        run: echo "dir=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-${{ runner.os }}-
+
+      - name: Install dependencies from lockfile
+        run: yarn install --frozen-lockfile
+
+      - name: Build API workspace
+        run: yarn workspace api build
+
+      - name: Lint web workspace
+        run: yarn workspace web lint
+
+      - name: Build web workspace
+        run: yarn workspace web build
+        env:
+          TASKFLOW_API_ORIGIN: https://ci-placeholder.invalid

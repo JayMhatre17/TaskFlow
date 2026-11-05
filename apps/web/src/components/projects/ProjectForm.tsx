@@ -6,21 +6,34 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import SelectRHF from "../forms/SelectRHF";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ProjectFormValues, projectSchema } from "./project.schema";
 import { toast } from "sonner";
 import { useCreateProject } from "@/hooks/mutation/useCreateProject";
 import { useUpdateProject } from "@/hooks/mutation/useUpdateProject";
 import { ApiError } from "@/lib/api/client";
 import { getProjectEditLoginPath } from "@/lib/auth-redirect";
+import type { RichTextDocument } from "@/lib/api/rich-text.types";
+import RichTextEditor from "@/components/rich-text/RichTextEditor";
+import { legacyTextToRichText, sanitizeRichTextDocument } from "@/components/rich-text/rich-text.utils";
 
 type ProjectFormProps = {
   mode: "create" | "edit";
   projectId?: number;
   defaultValues?: ProjectFormValues;
+  descriptionContent?: RichTextDocument | null;
 };
 
-const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
+const ProjectForm = ({ mode, projectId, defaultValues, descriptionContent = null }: ProjectFormProps) => {
   const router = useRouter();
+  const [initialRichText] = useState(
+    () => {
+      const content = descriptionContent ?? legacyTextToRichText(defaultValues?.description);
+      return content ? sanitizeRichTextDocument(content) : null;
+    },
+  );
+  const [richTextValue, setRichTextValue] = useState<RichTextDocument | null>(initialRichText);
+  const [richTextChanged, setRichTextChanged] = useState(false);
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
@@ -42,9 +55,15 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
   const { mutateAsync: updateProject } = useUpdateProject();
 
   const onSubmit = async (data: ProjectFormValues) => {
+    const { description: legacyDescription, ...projectFields } = data;
+    void legacyDescription;
+    const requestData = richTextChanged
+      ? { ...projectFields, descriptionContent: richTextValue }
+      : projectFields;
+
     try {
       if (mode === "create") {
-        const project = await createProject(data);
+        const project = await createProject(requestData);
         toast.success("Project created successfully");
 
         router.push(`/projects/${project?.id}`);
@@ -55,7 +74,7 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
         throw new Error("Project ID is required");
       }
 
-      const project = await updateProject({ id: projectId, data });
+      const project = await updateProject({ id: projectId, data: requestData });
 
       toast.success("Project updated successfully");
 
@@ -89,10 +108,14 @@ const ProjectForm = ({ mode, projectId, defaultValues }: ProjectFormProps) => {
 
         <div>
           <label className="mb-2 block text-sm font-medium">Description</label>
-
-          <textarea
-            {...register("description")}
-            className="min-h-24 w-full min-w-0 rounded-md border p-3 text-sm"
+          <RichTextEditor
+            initialContent={initialRichText}
+            disabled={isSubmitting}
+            onChange={(content) => {
+              setRichTextChanged(true);
+              setRichTextValue(content);
+            }}
+            label="Project description editor"
           />
         </div>
 

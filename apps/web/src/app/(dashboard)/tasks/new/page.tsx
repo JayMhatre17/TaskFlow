@@ -1,6 +1,18 @@
 import CreateTaskFormWithProjects from "@/components/task/CreateTaskFormWithProjects";
 
-export default function CreateTaskPage() {
+export default async function CreateTaskPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ projectId?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const projectIdValue = Array.isArray(params.projectId)
+    ? params.projectId[0]
+    : params.projectId;
+  const projectId = Number(projectIdValue);
+  const initialProjectId =
+    Number.isSafeInteger(projectId) && projectId > 0 ? projectId : undefined;
+
   return (
     <div className="space-y-6">
       <div>
@@ -12,7 +24,7 @@ export default function CreateTaskPage() {
       </div>
 
       <div className="max-w-3xl rounded-xl border bg-card p-6">
-        <CreateTaskFormWithProjects />
+        <CreateTaskFormWithProjects initialProjectId={initialProjectId} />
       </div>
     </div>
   );

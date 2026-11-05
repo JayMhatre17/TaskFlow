@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { assignTask, type AssignTaskInput } from "@/lib/api/task.api";
+import { projectTaskOverviewQueryKeys } from "@/hooks/queries/useProjectTaskOverview";
 
 type AssignTaskMutationInput = AssignTaskInput & {
   taskId: number;
@@ -29,6 +30,9 @@ export const useAssignTask = () => {
         queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }),
         queryClient.invalidateQueries({
           queryKey: ["project-tasks", projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: projectTaskOverviewQueryKeys.project(projectId),
         }),
       ]);
     },

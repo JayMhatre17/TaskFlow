@@ -1271,6 +1271,78 @@ describe("GET /api/projects", () => {
 
       createdProjectIds.push(response.body.id);
     });
+
+    it("creates projects with rich text and keeps a plain-text projection", async () => {
+      const document = {
+        version: 1,
+        type: "doc",
+        content: [
+          {
+            type: "heading",
+            attrs: { level: 2 },
+            content: [{ type: "text", text: "Rich project" }],
+          },
+          {
+            type: "paragraph",
+            content: [
+              { type: "text", text: "Read " },
+              {
+                type: "text",
+                text: "the guide",
+                marks: [{ type: "link", attrs: { href: "https://example.com" } }],
+              },
+            ],
+          },
+        ],
+      };
+      const response = await authenticatedRequest()
+        .post("/api/projects")
+        .send({
+          name: `[TEST] Rich Project ${Date.now()}`,
+          descriptionContent: document,
+          status: "Active",
+          startDate: "2026-01-01",
+          dueDate: "2026-12-31",
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.descriptionContent).toEqual(document);
+      expect(response.body.description).toBe("Rich project\nRead the guide");
+      createdProjectIds.push(response.body.id);
+    });
+
+    it("rejects malformed, oversized, and conflicting project descriptions", async () => {
+      const base = {
+        name: `[TEST] Invalid Rich Project ${Date.now()}`,
+        status: "Active",
+        startDate: "2026-01-01",
+        dueDate: "2026-12-31",
+      };
+      const malformed = await authenticatedRequest()
+        .post("/api/projects")
+        .send({
+          ...base,
+          descriptionContent: { version: 1, type: "doc", content: [{ type: "script" }] },
+        });
+      const oversized = await authenticatedRequest()
+        .post("/api/projects")
+        .send({
+          ...base,
+          descriptionContent: {
+            version: 1,
+            type: "doc",
+            content: [{ type: "paragraph", content: [{ type: "text", text: "x".repeat(1001) }] }],
+          },
+        });
+      const conflicting = await authenticatedRequest()
+        .post("/api/projects")
+        .send({ ...base, description: "legacy", descriptionContent: { version: 1, type: "doc", content: [] } });
+
+      for (const response of [malformed, oversized, conflicting]) {
+        expect(response.status).toBe(400);
+        expect(response.body).toMatchObject({ message: "Validation failed" });
+      }
+    });
   });
   it("should reject a project when name is missing", async () => {
     const response = await authenticatedRequest().post("/api/projects").send({
@@ -1618,7 +1690,14 @@ describe("PATCH /api/projects/:id", () => {
 
       const response = await authenticatedRequestWithSession(member.session.id)
         .patch(`/api/projects/${project.id}`)
-        .send({ name: "Unauthorized change" });
+        .send({
+          name: "Unauthorized change",
+          descriptionContent: {
+            version: 1,
+            type: "doc",
+            content: [{ type: "paragraph", content: [{ type: "text", text: "Unauthorized rich edit" }] }],
+          },
+        });
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty("message", "Project not found");
@@ -1627,6 +1706,8 @@ describe("PATCH /api/projects/:id", () => {
         id: project.id,
       }).first();
       expect(unchangedProject?.name).toBe(project.name);
+      expect(unchangedProject?.description).toBe(project.description);
+      expect(unchangedProject?.descriptionContent).toBeNull();
     } finally {
       if (membershipId !== undefined) {
         await db.orm.public.ProjectMember.where({ id: membershipId }).delete();
@@ -1694,6 +1775,79 @@ describe("PATCH /api/projects/:id", () => {
       description: project.description,
       status: project.status,
     });
+  });
+  it("updates and clears rich-text project descriptions without converting legacy text", async () => {
+    const project = await createTestProject({
+      name: `[TEST] Rich Project Update ${Date.now()}`,
+      description: "Legacy description",
+    });
+    createdProjectIds.push(project.id);
+
+    const document = {
+      version: 1,
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Updated rich text" }] }],
+    };
+    const update = await authenticatedRequest()
+      .patch(`/api/projects/${project.id}`)
+      .send({ descriptionContent: document });
+
+    expect(update.status).toBe(200);
+    expect(update.body.descriptionContent).toEqual(document);
+    expect(update.body.description).toBe("Updated rich text");
+
+    const cleared = await authenticatedRequest()
+      .patch(`/api/projects/${project.id}`)
+      .send({ descriptionContent: null });
+
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.description).toBeNull();
+    expect(cleared.body.descriptionContent).toBeNull();
+  });
+
+  it("preserves image-only and table-only project rich-text documents", async () => {
+    const documents = [
+      {
+        version: 1,
+        type: "doc",
+        content: [{ type: "image", attrs: { src: "https://images.example.com/project.png", alt: "" } }],
+      },
+      {
+        version: 1,
+        type: "doc",
+        content: [
+          {
+            type: "table",
+            content: [
+              {
+                type: "tableRow",
+                content: [
+                  { type: "tableCell", content: [{ type: "paragraph" }] },
+                  { type: "tableCell", content: [{ type: "paragraph" }] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    for (const [index, descriptionContent] of documents.entries()) {
+      const response = await authenticatedRequest()
+        .post("/api/projects")
+        .send({
+          name: `[TEST] Rich Object Project ${Date.now()} ${index}`,
+          descriptionContent,
+          status: "Active",
+          startDate: "2026-01-01",
+          dueDate: "2026-12-31",
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.descriptionContent).toEqual(descriptionContent);
+      expect(response.body.description).toBeNull();
+      createdProjectIds.push(response.body.id);
+    }
   });
   it("should reject a partial startDate update later than the stored dueDate", async () => {
     const project = await createTestProject({

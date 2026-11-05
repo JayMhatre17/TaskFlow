@@ -76,6 +76,7 @@ const EditTaskFormContent = ({ taskId }: EditTaskFormContentProps) => {
       mode="edit"
       taskId={task.id}
       defaultValues={defaultValues}
+      descriptionContent={task.descriptionContent}
       projectOptions={projectOptions}
     />
   );

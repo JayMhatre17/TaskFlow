@@ -1,5 +1,6 @@
 import { apiRequest } from "./client";
-import { Task } from "./task.api";
+import type { DescriptionInput, RichTextDocument } from "./rich-text.types";
+import type { Task } from "./task.api";
 
 export type Project = {
   id: number;
@@ -11,6 +12,7 @@ export type Project = {
   } | null;
   name: string;
   description: string | null;
+  descriptionContent: RichTextDocument | null;
   status: "Active" | "On Hold";
   startDate: string;
   dueDate: string;
@@ -39,25 +41,37 @@ export type ProjectListResponse = {
   };
 };
 
-export type DeletedProject = Pick<Project, "id" | "name" | "description"> & {
+export type DeletedProject = Pick<Project, "id" | "name" | "description" | "descriptionContent"> & {
   deletedAt: string;
   scheduledDeletionAt: string | null;
 };
 
 export type DeletedProjectsResponse = { projects: DeletedProject[] };
-export type CreateProjectInput = {
+type ProjectFieldsInput = {
   name: string;
-  description?: string;
   status: "Active" | "On Hold";
   startDate: string;
   dueDate: string;
 };
 
-export type UpdateProjectInput = Partial<CreateProjectInput>;
+export type CreateProjectInput = ProjectFieldsInput & DescriptionInput;
+
+export type UpdateProjectInput = Partial<ProjectFieldsInput> & DescriptionInput;
 
 export type ProjectOption = {
   id: number;
   name: string;
+};
+
+export type ProjectTaskOverview = {
+  summary: {
+    totalTasks: number;
+    completedTasks: number;
+    inProgressTasks: number;
+    overdueTasks: number;
+    completionPercentage: number;
+  };
+  recentTasks: Task[];
 };
 
 export const getProjects = (params?: ProjectQueryParams) => {
@@ -116,6 +130,12 @@ export const getTasksByProject = (projectId: number) => {
     path: `/api/projects/${projectId}/tasks`,
   });
 };
+
+export const getProjectTaskOverview = (projectId: number) =>
+  apiRequest<ProjectTaskOverview>({
+    method: "GET",
+    path: `/api/projects/${projectId}/task-overview`,
+  });
 
 export const getProjectOptions = () => {
   return apiRequest<ProjectOption[]>({

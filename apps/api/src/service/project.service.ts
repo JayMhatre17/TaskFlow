@@ -92,6 +92,7 @@ export const getDeletedProjects = async (userId: number) => {
       id: project.id,
       name: project.name,
       description: project.description,
+      descriptionContent: project.descriptionContent,
       deletedAt: project.deletedAt,
       scheduledDeletionAt: project.scheduledDeletionAt,
     }));
@@ -145,7 +146,8 @@ export const createProject = async (
   return db.transaction(async (tx) => {
     const project = await tx.orm.public.Project.create({
       name: data.name,
-      description: data.description,
+      description: data.description ?? null,
+      descriptionContent: data.descriptionContent ?? null,
       status: data.status,
       startDate: Temporal.Instant.from(`${data.startDate}T00:00:00Z`),
       dueDate: Temporal.Instant.from(`${data.dueDate}T00:00:00Z`),
@@ -187,6 +189,10 @@ export const updateProject = async (
         description: data.description,
       }),
 
+      ...(data.descriptionContent !== undefined && {
+        descriptionContent: data.descriptionContent,
+      }),
+
       ...(data.status !== undefined && {
         status: data.status,
       }),
@@ -199,9 +205,15 @@ export const updateProject = async (
         dueDate: Temporal.Instant.from(`${data.dueDate}T00:00:00Z`),
       }),
     };
+    const descriptionChanged =
+      data.description !== undefined &&
+      (project.description !== updateData.description ||
+        JSON.stringify(project.descriptionContent ?? null) !==
+          JSON.stringify(updateData.descriptionContent ?? null));
+
     const changes = [
       { field: "name", oldValue: project.name, newValue: updateData.name },
-      {
+      descriptionChanged && {
         field: "description",
         oldValue: project.description,
         newValue: updateData.description,
@@ -221,7 +233,7 @@ export const updateProject = async (
         oldValue: project.dueDate,
         newValue: updateData.dueDate,
       },
-    ].filter((change) => change.newValue !== undefined);
+    ];
 
     const updatedProject = await tx.orm.public.Project.where({
       id,
@@ -234,6 +246,8 @@ export const updateProject = async (
     }
 
     for (const change of changes) {
+      if (!change || change.newValue === undefined) continue;
+
       await tx.orm.public.ProjectActivity.create({
         projectId: id,
         actorId: userId,

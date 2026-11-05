@@ -11,6 +11,8 @@ import DeleteTaskAction from "./DeleteTaskAction";
 import TaskActivitySection from "./TaskActivitySection";
 import TaskCommentsSection from "./TaskCommentsSection";
 import { formatUserName, getDistinctUserEmail } from "@/lib/user-display";
+import RichTextRenderer from "@/components/rich-text/RichTextRenderer";
+import { ArrowUpRight } from "lucide-react";
 
 type TaskDetailsContentProps = {
   taskId: number;
@@ -60,11 +62,15 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
             <Badge className={taskStatusClass[task.status]}>{task.status}</Badge>
           </div>
 
-          {task.description && (
+          {task.descriptionContent ? (
+            <div className="mt-2 min-w-0 text-foreground">
+              <RichTextRenderer content={task.descriptionContent} label="Task description" />
+            </div>
+          ) : task.description ? (
             <p className="mt-2 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
               {task.description}
             </p>
-          )}
+          ) : null}
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -88,9 +94,20 @@ const TaskDetailsContent = ({ taskId }: TaskDetailsContentProps) => {
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Project</p>
 
-              <p className="mt-1 break-words font-medium [overflow-wrap:anywhere]">
-                {task.project?.name ?? "Unknown project"}
-              </p>
+              {task.project ? (
+                <Link
+                  href={`/projects/${task.project.id}`}
+                  className="mt-1 inline-flex max-w-full items-center gap-1 break-words font-medium text-primary hover:underline [overflow-wrap:anywhere]"
+                  aria-label={`Open project ${task.project.name}`}
+                >
+                  <span className="min-w-0 break-words">{task.project.name}</span>
+                  <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+                </Link>
+              ) : (
+                <p className="mt-1 break-words font-medium [overflow-wrap:anywhere]">
+                  Unknown project
+                </p>
+              )}
             </div>
 
             {/* Assignee */}

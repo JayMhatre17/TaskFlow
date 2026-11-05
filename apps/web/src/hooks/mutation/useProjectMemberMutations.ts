@@ -6,6 +6,7 @@ import {
   type RemoveProjectMemberInput,
 } from "@/lib/api/project-collaboration.api";
 import { projectCollaborationQueryKeys } from "@/hooks/queries/useProjectMembers";
+import { projectTaskOverviewQueryKeys } from "@/hooks/queries/useProjectTaskOverview";
 
 export const useAddProjectMember = () => {
   const queryClient = useQueryClient();
@@ -29,6 +30,13 @@ export const useRemoveProjectMember = () => {
       await queryClient.invalidateQueries({
         queryKey: projectCollaborationQueryKeys.members(projectId),
       });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["project-tasks", projectId] }),
+        queryClient.invalidateQueries({
+          queryKey: projectTaskOverviewQueryKeys.project(projectId),
+        }),
+        queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+      ]);
     },
   });
 };

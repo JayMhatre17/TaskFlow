@@ -9,7 +9,10 @@ import {
   updateProjectController,
   restoreProjectController,
 } from "../controllers/projects.controller.js";
-import { getTasksByProjectController } from "../controllers/task.controller.js";
+import {
+  getProjectTaskOverviewController,
+  getTasksByProjectController,
+} from "../controllers/task.controller.js";
 import { requireAuth } from "../middlewares/require-auth.middleware.js";
 import {
   addProjectMemberController,
@@ -43,6 +46,7 @@ router.post("/:id/restore", restoreProjectController);
 router.patch("/:id", updateProjectController);
 router.delete("/:id", deleteProjectController);
 
+router.get("/:projectId/task-overview", getProjectTaskOverviewController);
 router.get("/:projectId/tasks", getTasksByProjectController);
 
 router.get("/:projectId/members", getProjectMembersController);

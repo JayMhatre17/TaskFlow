@@ -6,7 +6,11 @@ import LoadingState from "@/components/states/LoadingState";
 import useProjectOptions from "@/hooks/queries/useProjectOptions";
 import CreateTaskForm from "./CreateTaskForm";
 
-const CreateTaskFormWithProjects = () => {
+const CreateTaskFormWithProjects = ({
+  initialProjectId,
+}: {
+  initialProjectId?: number;
+}) => {
   const { data: projects, isPending, isError, error, refetch } = useProjectOptions();
 
   if (isPending) {
@@ -38,7 +42,19 @@ const CreateTaskFormWithProjects = () => {
     value: String(project.id),
   }));
 
-  return <CreateTaskForm mode="create" projectOptions={projectOptions} />;
+  const selectedProjectId = projectOptions.some(
+    (project) => project.value === String(initialProjectId),
+  )
+    ? initialProjectId
+    : undefined;
+
+  return (
+    <CreateTaskForm
+      mode="create"
+      projectOptions={projectOptions}
+      initialProjectId={selectedProjectId}
+    />
+  );
 };
 
 export default CreateTaskFormWithProjects;

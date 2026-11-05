@@ -18,11 +18,16 @@ import { useAssignTask } from "@/hooks/mutation/useAssignTask";
 import { useProjectMembers } from "@/hooks/queries/useProjectMembers";
 import useProject from "@/hooks/queries/useProject";
 import { formatUserOptionLabel } from "@/lib/user-display";
+import type { RichTextDocument } from "@/lib/api/rich-text.types";
+import RichTextEditor from "@/components/rich-text/RichTextEditor";
+import { legacyTextToRichText, sanitizeRichTextDocument } from "@/components/rich-text/rich-text.utils";
 
 type TaskFormProps = {
   mode: "create" | "edit";
   taskId?: number;
+  initialProjectId?: number;
   defaultValues?: TaskFormValues;
+  descriptionContent?: RichTextDocument | null;
   projectOptions: {
     label: string;
     value: string;
@@ -32,10 +37,20 @@ type TaskFormProps = {
 const TaskForm = ({
   mode,
   defaultValues,
+  initialProjectId,
+  descriptionContent = null,
   taskId,
   projectOptions,
 }: TaskFormProps) => {
   const router = useRouter();
+  const [initialRichText] = useState(
+    () => {
+      const content = descriptionContent ?? legacyTextToRichText(defaultValues?.description);
+      return content ? sanitizeRichTextDocument(content) : null;
+    },
+  );
+  const [richTextValue, setRichTextValue] = useState<RichTextDocument | null>(initialRichText);
+  const [richTextChanged, setRichTextChanged] = useState(false);
   const [createdTaskAssignment, setCreatedTaskAssignment] = useState<{
     taskId: number;
     projectId: number;
@@ -49,7 +64,11 @@ const TaskForm = ({
     defaultValues: defaultValues ?? {
       title: "",
       description: "",
-      projectId: "",
+      projectId:
+        initialProjectId &&
+        projectOptions.some((project) => project.value === String(initialProjectId))
+          ? String(initialProjectId)
+          : "",
       assigneeId: "",
       status: "TODO",
       priority: "MEDIUM",
@@ -169,7 +188,8 @@ const TaskForm = ({
   };
 
   const onSubmit = async (data: TaskFormValues) => {
-    const { assigneeId, ...taskFormData } = data;
+    const { assigneeId, description: legacyDescription, ...taskFormData } = data;
+    void legacyDescription;
     const selectedAssigneeId = assigneeId ? Number(assigneeId) : null;
     const originalAssigneeId = defaultValues?.assigneeId ?? "";
     const assignmentChanged =
@@ -199,6 +219,9 @@ const TaskForm = ({
       const payload = {
         ...taskFormData,
         projectId: Number(data.projectId),
+        ...(richTextChanged && {
+          descriptionContent: richTextValue,
+        }),
       };
 
       if (mode === "create") {
@@ -326,18 +349,15 @@ const TaskForm = ({
         {/* Description */}
         <div>
           <label className="mb-2 block text-sm font-medium">Description</label>
-
-          <textarea
-            {...register("description")}
-            placeholder="Describe the task..."
-            className="min-h-28 w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          <RichTextEditor
+            initialContent={initialRichText}
+            disabled={isSubmitting || isCreating || isUpdating}
+            onChange={(content) => {
+              setRichTextChanged(true);
+              setRichTextValue(content);
+            }}
+            label="Task description editor"
           />
-
-          {errors.description && (
-            <p className="mt-1 text-sm text-destructive">
-              {errors.description.message}
-            </p>
-          )}
         </div>
 
         {/* Project + Priority */}

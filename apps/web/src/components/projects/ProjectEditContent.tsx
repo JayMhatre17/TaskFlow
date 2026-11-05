@@ -110,6 +110,7 @@ const ProjectEditContent = ({ projectId }: { projectId: number }) => {
         startDate: project.startDate.slice(0, 10),
         dueDate: project.dueDate.slice(0, 10),
       }}
+      descriptionContent={project.descriptionContent}
     />
   );
 };

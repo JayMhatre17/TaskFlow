@@ -94,6 +94,7 @@ model Project {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
+  descriptionContent Jsonb?
   status      String
   startDate   DateTime
   dueDate     DateTime
@@ -218,6 +219,7 @@ model Task {
   id          Int      @id @default(autoincrement())
   title       String
   description String?
+  descriptionContent Jsonb?
   status      Int
   priority    Int
   dueDate     DateTime?

@@ -9,9 +9,11 @@ import Link from "next/link";
 import DeleteProjectButton from "./DeleteProjectButton";
 import { Badge } from "../ui/badge";
 import { formatDate } from "@/lib/basicFn";
-import { useProjectTasks } from "@/hooks/queries/useProjectTasks";
+import { useProjectTaskOverview } from "@/hooks/queries/useProjectTaskOverview";
 import { useCurrentUser } from "@/hooks/queries/useAuth";
 import ProjectMembersSection from "./ProjectMembersSection";
+import RichTextRenderer from "@/components/rich-text/RichTextRenderer";
+import ProjectTaskOverview from "./ProjectTaskOverview";
 
 const ProjectDetails = ({ id }: { id: number }) => {
   const {
@@ -22,14 +24,11 @@ const ProjectDetails = ({ id }: { id: number }) => {
     refetch,
   } = useProject(Number(id));
   const currentUserQuery = useCurrentUser();
-  const projectTasksQuery = useProjectTasks(id, Boolean(project));
-  const tasks = projectTasksQuery.data ?? [];
-  const completedTaskCount = tasks.filter(
-    (task) => task.status === "COMPLETED",
-  ).length;
-  const taskCount = tasks.length;
-  const progress =
-    taskCount === 0 ? 0 : Math.round((completedTaskCount / taskCount) * 100);
+  const projectTaskOverviewQuery = useProjectTaskOverview(
+    id,
+    Boolean(project),
+  );
+  const taskSummary = projectTaskOverviewQuery.data?.summary;
 
   if (isPending) {
     return <LoadingState message="Loading project..." />;
@@ -75,11 +74,15 @@ const ProjectDetails = ({ id }: { id: number }) => {
             </Badge>
           </div>
 
-          {project.description && (
+          {project.descriptionContent ? (
+            <div className="mt-2 min-w-0 text-foreground">
+              <RichTextRenderer content={project.descriptionContent} label="Project description" />
+            </div>
+          ) : project.description ? (
             <p className="mt-2 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
               {project.description}
             </p>
-          )}
+          ) : null}
         </div>
 
         {currentUserQuery.data?.user.id === project.ownerId && (
@@ -123,11 +126,11 @@ const ProjectDetails = ({ id }: { id: number }) => {
         <div className="min-w-0 rounded-xl border bg-card p-6">
           <h2 className="text-lg font-semibold">Progress</h2>
 
-          {projectTasksQuery.isPending ? (
+          {projectTaskOverviewQuery.isPending ? (
             <p className="mt-6 text-sm text-muted-foreground" role="status">
               Loading task progress...
             </p>
-          ) : projectTasksQuery.isError ? (
+          ) : projectTaskOverviewQuery.isError ? (
             <p className="mt-6 text-sm text-muted-foreground" role="status">
               Task progress is unavailable.
             </p>
@@ -136,25 +139,33 @@ const ProjectDetails = ({ id }: { id: number }) => {
               <div className="mt-6">
                 <div className="mb-2 flex justify-between text-sm">
                   <span className="text-muted-foreground">Completion</span>
-                  <span className="font-medium">{progress}%</span>
+                  <span className="font-medium">
+                    {taskSummary?.completionPercentage ?? 0}%
+                  </span>
                 </div>
 
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-primary"
-                    style={{ width: `${progress}%` }}
+                    style={{
+                      width: `${taskSummary?.completionPercentage ?? 0}%`,
+                    }}
                   />
                 </div>
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-2xl font-bold">{completedTaskCount}</p>
+                  <p className="text-2xl font-bold">
+                    {taskSummary?.completedTasks ?? 0}
+                  </p>
                   <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
 
                 <div>
-                  <p className="text-2xl font-bold">{taskCount}</p>
+                  <p className="text-2xl font-bold">
+                    {taskSummary?.totalTasks ?? 0}
+                  </p>
                   <p className="text-sm text-muted-foreground">Total Tasks</p>
                 </div>
               </div>
@@ -162,6 +173,14 @@ const ProjectDetails = ({ id }: { id: number }) => {
           )}
         </div>
       </div>
+
+      <ProjectTaskOverview
+        projectId={project.id}
+        data={projectTaskOverviewQuery.data}
+        isPending={projectTaskOverviewQuery.isPending}
+        error={projectTaskOverviewQuery.isError ? projectTaskOverviewQuery.error : null}
+        onRetry={() => void projectTaskOverviewQuery.refetch()}
+      />
 
       <ProjectMembersSection project={project} />
     </div>

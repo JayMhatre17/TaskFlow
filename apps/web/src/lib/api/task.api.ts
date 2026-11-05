@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import type { DescriptionInput, RichTextDocument } from "./rich-text.types";
 
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "COMPLETED";
 
@@ -20,6 +21,7 @@ export type Task = {
   id: number;
   title: string;
   description: string | null;
+  descriptionContent: RichTextDocument | null;
   status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
@@ -38,7 +40,13 @@ export type Task = {
 
 export type DeletedTask = Pick<
   Task,
-  "id" | "title" | "description" | "status" | "priority" | "dueDate"
+  | "id"
+  | "title"
+  | "description"
+  | "descriptionContent"
+  | "status"
+  | "priority"
+  | "dueDate"
 > & {
   deletedAt: string;
   project: {
@@ -50,14 +58,15 @@ export type DeletedTask = Pick<
 
 export type DeletedTasksResponse = { tasks: DeletedTask[] };
 
-export type CreateTaskInput = {
+type TaskFieldsInput = {
   title: string;
-  description?: string;
   status: TaskStatus;
   priority: TaskPriority;
   dueDate?: string;
   projectId: number;
 };
+
+export type CreateTaskInput = TaskFieldsInput & DescriptionInput;
 
 export type TaskListResponse = {
   data: Task[];
@@ -118,7 +127,7 @@ export type TaskActivity = {
 export type TaskActivitiesResponse = {
   activities: TaskActivity[];
 };
-export type UpdateTaskInput = Partial<CreateTaskInput>;
+export type UpdateTaskInput = Partial<TaskFieldsInput> & DescriptionInput;
 
 export type AssignTaskInput = {
   assigneeId: number | null;

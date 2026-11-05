@@ -1,0 +1,86 @@
+[
+  {
+    "id": "column.public.project.descriptionContent",
+    "label": "Add column \"descriptionContent\" to \"project\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "descriptionContent",
+        "table": "project"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"descriptionContent\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "project",
+          "descriptionContent"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"descriptionContent\"",
+        "sql": "ALTER TABLE \"public\".\"project\" ADD COLUMN \"descriptionContent\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"descriptionContent\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "project",
+          "descriptionContent"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.task.descriptionContent",
+    "label": "Add column \"descriptionContent\" to \"task\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "descriptionContent",
+        "table": "task"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"descriptionContent\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "task",
+          "descriptionContent"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"descriptionContent\"",
+        "sql": "ALTER TABLE \"public\".\"task\" ADD COLUMN \"descriptionContent\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"descriptionContent\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "task",
+          "descriptionContent"
+        ]
+      }
+    ]
+  }
+]

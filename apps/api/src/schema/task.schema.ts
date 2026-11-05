@@ -1,4 +1,57 @@
 import z from "zod";
+import {
+  extractRichTextPlainText,
+  normalizeRichTextDocument,
+  taskRichTextDocumentSchema,
+} from "./rich-text.schema.js";
+
+const taskDescriptionFields = {
+  description: z
+    .string()
+    .trim()
+    .max(2000, "Description cannot exceed 2000 characters")
+    .optional(),
+  descriptionContent: taskRichTextDocumentSchema.nullable().optional(),
+};
+
+const validateDescriptionInput = (
+  data: { description?: string; descriptionContent?: unknown },
+  context: z.RefinementCtx,
+) => {
+  if (data.description !== undefined && data.descriptionContent !== undefined) {
+    context.addIssue({
+      code: "custom",
+      path: ["descriptionContent"],
+      message: "Send either description or descriptionContent, not both",
+    });
+  }
+};
+
+const taskDescriptionOutput = <T extends { description?: string; descriptionContent?: unknown }>(data: T) => {
+  if (data.descriptionContent !== undefined) {
+    const descriptionContent = normalizeRichTextDocument(data.descriptionContent, "task");
+    const projection = descriptionContent
+      ? extractRichTextPlainText(descriptionContent)
+      : "";
+
+    return {
+      ...data,
+      description: projection.trim() ? projection : null,
+      descriptionContent,
+    };
+  }
+
+  if (data.description !== undefined) {
+    return {
+      ...data,
+      description: data.description || null,
+      descriptionContent: null,
+    };
+  }
+
+  return data;
+};
+
 export const createTaskSchema = z.object({
   title: z
     .string()
@@ -6,11 +59,7 @@ export const createTaskSchema = z.object({
     .min(1, "Task title is required")
     .max(200, "Task title cannot exceed 200 characters"),
 
-  description: z
-    .string()
-    .trim()
-    .max(2000, "Description cannot exceed 2000 characters")
-    .optional(),
+  ...taskDescriptionFields,
 
   status: z.enum(["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED"], {
     message: "Invalid task status",
@@ -23,7 +72,7 @@ export const createTaskSchema = z.object({
   dueDate: z.iso.date("Due date must be a valid date").optional(),
 
   projectId: z.number().int().positive("Project ID must be a positive integer"),
-});
+}).superRefine(validateDescriptionInput).transform(taskDescriptionOutput);
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export const updateTaskSchema = z
@@ -35,11 +84,7 @@ export const updateTaskSchema = z
       .max(200, "Task title cannot exceed 200 characters")
       .optional(),
 
-    description: z
-      .string()
-      .trim()
-      .max(2000, "Description cannot exceed 2000 characters")
-      .optional(),
+    ...taskDescriptionFields,
 
     status: z
       .enum(["TODO", "IN_PROGRESS", "IN_REVIEW", "COMPLETED"], {
@@ -63,7 +108,9 @@ export const updateTaskSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",
-  });
+  })
+  .superRefine(validateDescriptionInput)
+  .transform(taskDescriptionOutput);
 
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 

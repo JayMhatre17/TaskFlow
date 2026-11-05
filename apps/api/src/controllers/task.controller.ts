@@ -7,6 +7,7 @@ import {
   getTaskActivities,
   getTaskById,
   getDeletedTasks,
+  getProjectTaskOverview,
   getTasks,
   getTasksByProjectId,
   restoreTask,
@@ -192,6 +193,29 @@ export const getTasksByProjectController = async (
     res.json(tasks);
   } catch (error) {
     next(error);
+  }
+};
+
+export const getProjectTaskOverviewController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = Number(req.params.projectId);
+
+    if (!Number.isSafeInteger(projectId) || projectId <= 0) {
+      throw new ApiError(400, "Invalid project ID");
+    }
+
+    const overview = await getProjectTaskOverview(projectId, req.user!.id);
+    if (!overview) {
+      throw new ApiError(404, "Project not found");
+    }
+
+    return res.status(200).json(overview);
+  } catch (error) {
+    return next(error);
   }
 };
 

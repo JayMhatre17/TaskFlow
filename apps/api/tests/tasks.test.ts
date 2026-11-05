@@ -129,8 +129,108 @@ describe("Task API", () => {
     expect(response.body.status).toBe("TODO");
     expect(response.body.priority).toBe("HIGH");
     expect(response.body.assignee).toBeNull();
+    expect(response.body.descriptionContent).toBeNull();
 
     createdTaskId = response.body.id;
+  });
+
+  it("creates a task with validated rich text and a legacy plain-text projection", async () => {
+    const document = {
+      version: 1,
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "Task notes" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Details" }] },
+      ],
+    };
+    const response = await authenticatedRequest().post("/api/tasks").send({
+      title: `[TEST] Rich task ${Date.now()}`,
+      descriptionContent: document,
+      status: "TODO",
+      priority: "LOW",
+      projectId: testProjectId,
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.descriptionContent).toEqual(document);
+    expect(response.body.description).toBe("Task notes\nDetails");
+    createdTaskId = response.body.id;
+  });
+
+  it("rejects malformed, oversized, and conflicting task descriptions", async () => {
+    const base = {
+      title: `[TEST] Invalid Rich Task ${Date.now()}`,
+      status: "TODO",
+      priority: "LOW",
+      projectId: testProjectId,
+    };
+    const malformed = await authenticatedRequest().post("/api/tasks").send({
+      ...base,
+      descriptionContent: { version: 1, type: "doc", content: [{ type: "unsupported" }] },
+    });
+    const oversized = await authenticatedRequest().post("/api/tasks").send({
+      ...base,
+      descriptionContent: {
+        version: 1,
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "x".repeat(2001) }] }],
+      },
+    });
+    const conflicting = await authenticatedRequest().post("/api/tasks").send({
+      ...base,
+      description: "legacy",
+      descriptionContent: { version: 1, type: "doc", content: [] },
+    });
+
+    for (const response of [malformed, oversized, conflicting]) {
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ message: "Validation failed" });
+    }
+  });
+
+  it("preserves empty, image-only, and table-only task descriptions", async () => {
+    const documents = [
+      { version: 1, type: "doc", content: [] },
+      {
+        version: 1,
+        type: "doc",
+        content: [{ type: "image", attrs: { src: "https://images.example.com/task.png", alt: "" } }],
+      },
+      {
+        version: 1,
+        type: "doc",
+        content: [
+          {
+            type: "table",
+            content: [
+              { type: "tableRow", content: [{ type: "tableHeader", content: [{ type: "paragraph" }] }] },
+            ],
+          },
+        ],
+      },
+    ];
+
+    for (const [index, descriptionContent] of documents.entries()) {
+      const response = await authenticatedRequest().post("/api/tasks").send({
+        title: `[TEST] Rich Object Task ${Date.now()} ${index}`,
+        descriptionContent,
+        status: "TODO",
+        priority: "LOW",
+        projectId: testProjectId,
+      });
+
+      expect(response.status).toBe(201);
+      if (index === 0) {
+        expect(response.body.descriptionContent).toBeNull();
+        expect(response.body.description).toBeNull();
+      } else {
+        expect(response.body.descriptionContent).toEqual(descriptionContent);
+        expect(response.body.description).toBeNull();
+      }
+      createdTaskId = response.body.id;
+      await authenticatedRequest().delete(`/api/tasks/${createdTaskId}`);
+      createdTaskId = undefined;
+    }
   });
   it("should get a task by id", async () => {
     const createResponse = await authenticatedRequest()
@@ -204,6 +304,41 @@ describe("Task API", () => {
     expect(response.body.description).toBe("[TEST] After update");
     expect(response.body.status).toBe("IN_PROGRESS");
     expect(response.body.priority).toBe("HIGH");
+  });
+
+  it("updates and clears task rich text while retaining legacy plain-text records", async () => {
+    const created = await authenticatedRequest().post("/api/tasks").send({
+      title: `[TEST] Rich task update ${Date.now()}`,
+      description: "Legacy description",
+      status: "TODO",
+      priority: "LOW",
+      projectId: testProjectId,
+    });
+    expect(created.status).toBe(201);
+    createdTaskId = created.body.id;
+    expect(created.body.description).toBe("Legacy description");
+    expect(created.body.descriptionContent).toBeNull();
+
+    const document = {
+      version: 1,
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "New rich task description" }] }],
+    };
+    const updated = await authenticatedRequest()
+      .patch(`/api/tasks/${createdTaskId}`)
+      .send({ descriptionContent: document });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.descriptionContent).toEqual(document);
+    expect(updated.body.description).toBe("New rich task description");
+
+    const cleared = await authenticatedRequest()
+      .patch(`/api/tasks/${createdTaskId}`)
+      .send({ descriptionContent: { version: 1, type: "doc", content: [] } });
+
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.description).toBeNull();
+    expect(cleared.body.descriptionContent).toBeNull();
   });
   it("should delete a task", async () => {
     const createResponse = await authenticatedRequest()
@@ -1121,6 +1256,11 @@ describe("Task API", () => {
 
     const updateResponse = await userA.patch(`/api/tasks/${taskId}`).send({
       title: "[TEST] Unauthorized update",
+      descriptionContent: {
+        version: 1,
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "Unauthorized rich edit" }] }],
+      },
     });
 
     expect(updateResponse.status).toBe(404);
@@ -1129,6 +1269,8 @@ describe("Task API", () => {
 
     expect(ownerResponse.status).toBe(200);
     expect(ownerResponse.body.title).toBe("[TEST] Original title");
+    expect(ownerResponse.body.description).toBe("[TEST] Original description");
+    expect(ownerResponse.body.descriptionContent).toBeNull();
   });
   it("should prevent a user from deleting another user's task", async () => {
     const userA = authenticatedRequestWithSession(sessionA);
@@ -1295,6 +1437,77 @@ describe("Task API", () => {
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
+  });
+  it("returns aggregated project task overview and only the latest five accessible tasks", async () => {
+    const project = await createTestProject();
+    const marker = `[TEST] Project overview ${Date.now()}`;
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const taskFixtures = [
+      { title: `${marker} completed overdue`, status: "COMPLETED", dueDate: yesterday },
+      { title: `${marker} in progress overdue`, status: "IN_PROGRESS", dueDate: yesterday },
+      { title: `${marker} todo overdue`, status: "TODO", dueDate: yesterday },
+      { title: `${marker} review due today`, status: "IN_REVIEW", dueDate: today },
+      { title: `${marker} todo without date`, status: "TODO" },
+      { title: `${marker} future task`, status: "TODO", dueDate: tomorrow },
+      { title: `${marker} completed without date`, status: "COMPLETED" },
+      { title: `${marker} deleted overdue`, status: "TODO", dueDate: yesterday },
+    ] as const;
+
+    try {
+      const createdTasks = [];
+      for (const fixture of taskFixtures) {
+        const response = await authenticatedRequest()
+          .post("/api/tasks")
+          .send({
+            ...fixture,
+            priority: "LOW",
+            projectId: project.id,
+          });
+        expect(response.status).toBe(201);
+        createdTasks.push(response.body);
+      }
+
+      const deletedTaskId = createdTasks[createdTasks.length - 1].id;
+      const deletion = await authenticatedRequest().delete(
+        `/api/tasks/${deletedTaskId}`,
+      );
+      expect(deletion.status).toBe(204);
+
+      const response = await authenticatedRequest().get(
+        `/api/projects/${project.id}/task-overview`,
+      );
+      expect(response.status).toBe(200);
+      expect(response.body.summary).toEqual({
+        totalTasks: 7,
+        completedTasks: 2,
+        inProgressTasks: 1,
+        overdueTasks: 2,
+        completionPercentage: 29,
+      });
+      expect(response.body.recentTasks).toHaveLength(5);
+      expect(
+        response.body.recentTasks.map((task: { id: number }) => task.id),
+      ).not.toContain(deletedTaskId);
+      expect(response.body.recentTasks[0]).toMatchObject({
+        project: { id: project.id, name: project.name },
+        assigneeId: null,
+        assignee: null,
+      });
+
+      const nonOwnerResponse = await authenticatedRequestWithSession(sessionB).get(
+        `/api/projects/${project.id}/task-overview`,
+      );
+      expect(nonOwnerResponse.status).toBe(404);
+      expect(nonOwnerResponse.body).not.toHaveProperty("recentTasks");
+    } finally {
+      await db.orm.public.Project.where({ id: project.id }).delete();
+    }
   });
   it("should return 404 when the project does not exist", async () => {
     const response = await authenticatedRequest().get(

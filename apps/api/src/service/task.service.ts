@@ -162,6 +162,7 @@ export const getDeletedTasks = async (userId: number) => {
       id: task.id,
       title: task.title,
       description: task.description,
+      descriptionContent: task.descriptionContent,
       status: safeTask.status,
       priority: safeTask.priority,
       dueDate: task.dueDate,
@@ -202,7 +203,8 @@ export const createTask = async (data: CreateTaskInput, userId: number) => {
   const task = await db.transaction(async (tx) => {
     const task = await tx.orm.public.Task.create({
       title: data.title,
-      description: data.description,
+      description: data.description ?? null,
+      descriptionContent: data.descriptionContent ?? null,
       status: TASK_STATUS[data.status],
       priority: TASK_PRIORITY[data.priority],
       dueDate:
@@ -255,6 +257,9 @@ export const updateTask = async (
     ...(data.description !== undefined && {
       description: data.description,
     }),
+    ...(data.descriptionContent !== undefined && {
+      descriptionContent: data.descriptionContent,
+    }),
     ...(data.status !== undefined && {
       status: TASK_STATUS[data.status],
     }),
@@ -289,15 +294,18 @@ export const updateTask = async (
     });
   }
 
-  if (
+  const descriptionChanged =
     data.description !== undefined &&
-    existingTask.description !== data.description
-  ) {
+    (existingTask.description !== data.description ||
+      JSON.stringify(existingTask.descriptionContent ?? null) !==
+        JSON.stringify(data.descriptionContent ?? null));
+
+  if (descriptionChanged) {
     activityEntries.push({
       action: "UPDATED",
       field: "description",
       oldValue: existingTask.description,
-      newValue: data.description,
+      newValue: data.description ?? null,
     });
   }
 
@@ -480,6 +488,74 @@ export const getTasksByProjectId = async (
       name: access.project.name,
     },
   }));
+};
+
+export const getProjectTaskOverview = async (
+  projectId: number,
+  userId: number,
+) => {
+  const access = await getProjectAccess(projectId, userId);
+
+  if (!access) {
+    return null;
+  }
+
+  const baseTasks = db.orm.public.Task.where({
+    projectId,
+    deletedAt: null,
+  });
+  const countTasks = async (query: typeof db.orm.public.Task) => {
+    const result = await query.aggregate((aggregate) => ({
+      total: aggregate.count(),
+    }));
+    return result.total;
+  };
+
+  const todayStart = Temporal.Instant.from(
+    `${Temporal.Now.instant().toString().slice(0, 10)}T00:00:00Z`,
+  );
+  const [totalTasks, completedTasks, inProgressTasks, overdueTasks, tasks] =
+    await Promise.all([
+      countTasks(baseTasks),
+      countTasks(baseTasks.where({ status: TASK_STATUS.COMPLETED })),
+      countTasks(baseTasks.where({ status: TASK_STATUS.IN_PROGRESS })),
+      countTasks(
+        baseTasks
+          .where((task) =>
+            or(
+              task.status.eq(TASK_STATUS.TODO),
+              task.status.eq(TASK_STATUS.IN_PROGRESS),
+              task.status.eq(TASK_STATUS.IN_REVIEW),
+            ),
+          )
+          .where((task) => task.dueDate.lt(todayStart)),
+      ),
+      baseTasks
+        .orderBy((task) => task.createdAt.desc())
+        .limit(5)
+        .all(),
+    ]);
+
+  const assignees = await getTaskAssignees(tasks);
+  const recentTasks = tasks.map((task) => ({
+    ...mapTaskWithAssignee(task, assignees),
+    project: {
+      id: access.project.id,
+      name: access.project.name,
+    },
+  }));
+
+  return {
+    summary: {
+      totalTasks,
+      completedTasks,
+      inProgressTasks,
+      overdueTasks,
+      completionPercentage:
+        totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100),
+    },
+    recentTasks,
+  };
 };
 
 const attachProject = async (task: TaskRecord | null) => {

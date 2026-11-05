@@ -614,6 +614,13 @@
                   "kind": "scalar"
                 }
               },
+              "descriptionContent": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "dueDate": {
                 "nullable": false,
                 "type": {
@@ -793,6 +800,9 @@
                 },
                 "description": {
                   "column": "description"
+                },
+                "descriptionContent": {
+                  "column": "descriptionContent"
                 },
                 "dueDate": {
                   "column": "dueDate"
@@ -1501,6 +1511,13 @@
                   "kind": "scalar"
                 }
               },
+              "descriptionContent": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "dueDate": {
                 "nullable": true,
                 "type": {
@@ -1688,6 +1705,9 @@
                 },
                 "description": {
                   "column": "description"
+                },
+                "descriptionContent": {
+                  "column": "descriptionContent"
                 },
                 "dueDate": {
                   "column": "dueDate"
@@ -2923,6 +2943,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "descriptionContent": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
                 "dueDate": {
                   "codecId": "pg/timestamptz-temporal@1",
                   "nativeType": "timestamptz",
@@ -3784,6 +3809,11 @@
                 "description": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
+                  "nullable": true
+                },
+                "descriptionContent": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
                   "nullable": true
                 },
                 "dueDate": {
@@ -4659,7 +4689,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "fee508c88105519ddacaa4d5f10902131d7ac5755d8b21f1f1e5fc2022294a49"
+    "storageHash": "ee21adc561c0634aefe0916851a14f398bc5776a8db8aec020f84b14607fedf7"
   },
   "execution": {
     "executionHash": "4f5b169da2781186fe20ac5d273958951da2da273e856be19d42cd02c7c540d9",
